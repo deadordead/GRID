@@ -2669,7 +2669,22 @@
   // ===========================================================
   // RESTRICTION D'ACCÈS — seul cet email peut se connecter à GRID
   // ===========================================================
-  var ALLOWED_EMAIL = "sebastien.cordina@gmail.com";
+  var ALLOWED_EMAIL_HASH = "6b3ee1e2fd46a73a62f6e35b4fa77ce6a40a0d6c4b5f09863982b543212b81f8";
+
+  function sha256Hex(text) {
+    var data = new TextEncoder().encode(text);
+    return crypto.subtle.digest('SHA-256', data).then(function (buf) {
+      return Array.from(new Uint8Array(buf)).map(function (b) {
+        return b.toString(16).padStart(2, '0');
+      }).join('');
+    });
+  }
+
+  function isAllowedEmail(email) {
+    return sha256Hex(email.trim().toLowerCase()).then(function (hash) {
+      return hash === ALLOWED_EMAIL_HASH;
+    });
+  }
 
   // ----- Envoi du lien magique -----
   document.getElementById('auth-send-btn').addEventListener('click', function () {
@@ -2677,17 +2692,19 @@
     if (!email) { showAuthError('Entre une adresse email.'); return; }
     document.getElementById('auth-error').style.display = 'none';
 
-    if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
-      showAuthError('Cette adresse email n\'est pas autorisée à accéder à GRID.');
-      return;
-    }
+    isAllowedEmail(email).then(function (allowed) {
+      if (!allowed) {
+        showAuthError('Cette adresse email n\'est pas autorisée à accéder à GRID.');
+        return;
+      }
 
-    sendSignInLinkToEmail(auth, email, actionCodeSettings).then(function () {
-      window.localStorage.setItem('grid-auth-email', email);
-      document.getElementById('auth-sent-email').textContent = email;
-      showAuthStep('sent');
-    }).catch(function (err) {
-      showAuthError("Erreur d'envoi : " + err.message);
+      sendSignInLinkToEmail(auth, email, actionCodeSettings).then(function () {
+        window.localStorage.setItem('grid-auth-email', email);
+        document.getElementById('auth-sent-email').textContent = email;
+        showAuthStep('sent');
+      }).catch(function (err) {
+        showAuthError("Erreur d'envoi : " + err.message);
+      });
     });
   });
 
@@ -2699,13 +2716,15 @@
   document.getElementById('auth-confirm-btn').addEventListener('click', function () {
     var email = document.getElementById('auth-confirm-email-input').value.trim();
     if (!email) { document.getElementById('auth-confirm-error').style.display = 'block'; return; }
-    if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
-      var errEl = document.getElementById('auth-confirm-error');
-      errEl.textContent = 'Cette adresse email n\'est pas autorisée à accéder à GRID.';
-      errEl.style.display = 'block';
-      return;
-    }
-    completeSignIn(email);
+    isAllowedEmail(email).then(function (allowed) {
+      if (!allowed) {
+        var errEl = document.getElementById('auth-confirm-error');
+        errEl.textContent = 'Cette adresse email n\'est pas autorisée à accéder à GRID.';
+        errEl.style.display = 'block';
+        return;
+      }
+      completeSignIn(email);
+    });
   });
 
   function completeSignIn(email) {
