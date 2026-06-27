@@ -1,0 +1,5012 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRID — suivi de temps & facturation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F3F0;
+    --ink: #1A1A18;
+    --ink-deep: #0F0F0E;
+    --signal: #FF4D00;
+    --signal-dim: #FFE4D6;
+    --stone: #D8D6CE;
+    --stone-deep: #B5B2A6;
+    --grey: #8A8980;
+    --lcd: #DCDCC8;
+    --lcd-ink: #2B2E22;
+    --radius: 2px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Archivo', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    zoom: 1.12;
+  }
+
+  .mono {
+    font-family: 'Space Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 2px solid var(--ink);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-mark {
+    width: 28px;
+    height: 28px;
+    background: var(--ink-deep);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .logo-mark span {
+    width: 10px;
+    height: 10px;
+    background: var(--signal);
+    border-radius: 50%;
+  }
+
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+  }
+  .logo-text small {
+    display: block;
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--grey);
+    letter-spacing: 0.12em;
+    margin-top: 1px;
+  }
+
+  .main-tabs {
+    display: flex;
+    gap: 4px;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 3px;
+  }
+  .main-tab {
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .main-tab:hover:not(.active) {
+    background: var(--stone);
+  }
+  .main-tab.active {
+    background: var(--ink-deep);
+    color: var(--bg);
+  }
+
+  /* ===== MAIN ===== */
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .section-subtitle {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .btn {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    border: 2px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.08s ease, background 0.12s ease;
+  }
+  .btn:hover { background: var(--ink); color: var(--bg); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--ink-deep);
+    color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--signal); border-color: var(--signal); color: var(--ink-deep); }
+
+  .btn-plus {
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .btn-plus::before, .btn-plus::after {
+    content: '';
+    position: absolute;
+    background: currentColor;
+  }
+  .btn-plus::before { width: 12px; height: 2px; }
+  .btn-plus::after { width: 2px; height: 12px; }
+
+  /* ===== LAUNCH BAR ===== */
+  .launch-bar {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    border: 2px solid var(--ink-deep);
+    border-radius: var(--radius);
+    background: var(--ink-deep);
+    padding: 10px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .launch-bar.running {
+    border-color: var(--signal);
+  }
+
+  .launch-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 0 14px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .launch-select-wrap-sub {
+    flex: 0 0 auto;
+    min-width: 150px;
+    max-width: 220px;
+  }
+  .launch-select-wrap::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--grey);
+    border-bottom: 2px solid var(--grey);
+    transform: rotate(45deg);
+    position: absolute;
+    right: 16px;
+    pointer-events: none;
+  }
+  .launch-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    padding: 14px 24px 14px 0;
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .launch-select:focus { outline: none; }
+  .launch-select:disabled { color: var(--grey); cursor: not-allowed; }
+
+  .launch-live {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    flex: 1;
+    min-width: 0;
+  }
+  .launch-live.show { display: flex; }
+  .launch-select-wrap.hide { display: none; }
+
+  .launch-live-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--signal);
+    flex-shrink: 0;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .launch-live-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--bg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .launch-live-sub {
+    font-size: 11px;
+    color: var(--signal);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+  .launch-live-lcd {
+    background: var(--lcd);
+    color: var(--lcd-ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+
+  .launch-toggle {
+    width: 64px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--signal);
+    color: var(--ink-deep);
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.12s ease;
+  }
+  .launch-toggle:active { transform: scale(0.96); }
+  .launch-toggle:disabled {
+    background: var(--stone-deep);
+    color: var(--grey);
+    cursor: not-allowed;
+  }
+  .launch-toggle.is-running {
+    background: var(--bg);
+    color: var(--ink-deep);
+  }
+
+  /* ===== PROJECT MODULE ===== */
+  .modules {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .module {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    display: grid;
+    grid-template-columns: 30px 1fr auto auto;
+    align-items: stretch;
+    position: relative;
+  }
+  .module.active {
+    border-color: var(--signal);
+  }
+
+  .module-index {
+    background: var(--ink-deep);
+    color: var(--stone);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    letter-spacing: 0.08em;
+    padding: 6px 0;
+  }
+  .module.active .module-index {
+    background: var(--signal);
+    color: var(--ink-deep);
+  }
+
+  .module-info {
+    padding: 4px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-width: 0;
+    border-right: 1px solid var(--stone);
+  }
+
+  .module-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .module-client {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--grey);
+    margin-left: 8px;
+  }
+  .module-client::before {
+    content: '· ';
+  }
+
+  .module-rate {
+    display: none;
+    font-size: 10px;
+    color: var(--grey);
+    margin: 0;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .module-rate b { color: var(--ink); font-weight: 700; }
+
+  .module-display {
+    padding: 3px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1px;
+    border-right: 1px solid var(--stone);
+    min-width: 120px;
+  }
+
+  .lcd {
+    background: var(--lcd);
+    color: var(--lcd-ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    letter-spacing: 0.04em;
+    border: 1px solid #C5C4B0;
+    line-height: 1.3;
+  }
+
+  .module-amount {
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .module-amount.signal { color: var(--signal); }
+
+  .module-actions {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .toggle-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s, transform 0.08s;
+  }
+  .toggle-btn:active { transform: scale(0.95); }
+  .toggle-icon-play {
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 6px 0 6px 10px;
+    border-color: transparent transparent transparent var(--ink);
+    margin-left: 2px;
+  }
+  .toggle-btn.is-running {
+    background: var(--signal);
+    border-color: var(--signal);
+  }
+  .toggle-icon-stop {
+    width: 11px; height: 11px;
+    background: var(--ink-deep);
+    border-radius: 1px;
+  }
+
+  .icon-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: var(--grey);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+  }
+  .icon-btn:hover { background: var(--stone); color: var(--ink); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    border: 2px dashed var(--stone-deep);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--grey);
+    font-size: 14px;
+  }
+  .empty-state strong {
+    display: block;
+    color: var(--ink);
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+
+  /* ===== ARCHIVED SECTION ===== */
+  .archived-section {
+    margin-top: 18px;
+  }
+  .archived-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--grey);
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    padding: 6px 0;
+  }
+  .archived-toggle:hover { color: var(--ink); }
+  .archived-toggle svg {
+    width: 13px;
+    height: 13px;
+    transition: transform 0.15s ease;
+  }
+  .archived-toggle.open svg {
+    transform: rotate(90deg);
+  }
+  .module.is-archived {
+    opacity: 0.6;
+  }
+  .module.is-archived:hover {
+    opacity: 0.85;
+  }
+
+  /* ===== NEW PROJECT PANEL ===== */
+  .new-panel {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 18px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .new-panel.open { display: block; }
+
+  .field-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .field {
+    flex: 1;
+    min-width: 160px;
+  }
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .field input.mono {
+    font-family: 'Space Mono', monospace;
+  }
+  .field input:focus {
+    outline: none;
+    border-color: var(--signal);
+    background: #FFFFFF;
+  }
+
+  .panel-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  /* ===== HISTORY ===== */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .history-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--stone-deep);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+  }
+
+  .history-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .history-project {
+    font-weight: 800;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-subtask {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--signal);
+    font-weight: 600;
+  }
+  .history-subtask::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--signal);
+    display: inline-block;
+  }
+  .history-date {
+    color: var(--grey);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  .history-range {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .history-range-lcd {
+    background: var(--lcd);
+    color: var(--lcd-ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: var(--radius);
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .history-range-arrow {
+    color: var(--grey);
+    font-size: 13px;
+  }
+  .history-duration-small {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  .history-range-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .day-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 8px;
+    padding-top: 2px;
+  }
+  .day-divider:first-child { margin-top: 0; }
+  .day-divider .day-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .day-divider .day-line {
+    flex: 1;
+    height: 1px;
+    background: var(--stone-deep);
+  }
+  .day-divider .day-total {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+    white-space: nowrap;
+  }
+
+  .history-empty {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--grey);
+    font-size: 13px;
+  }
+
+  /* ===== EDIT PANEL ===== */
+  .edit-panel {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 14px 16px;
+    margin: 4px 0 6px;
+  }
+  .edit-panel-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .edit-tab {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1.5px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .edit-tab.active {
+    background: var(--ink-deep);
+    color: var(--bg);
+  }
+  .edit-panel-fields {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .edit-field label {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+  }
+  .edit-field input {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 7px 9px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+    width: 100px;
+  }
+  .edit-field input:focus {
+    outline: none;
+    border-color: var(--signal);
+  }
+  .edit-panel-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .edit-panel-actions .btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .edit-result {
+    font-size: 11px;
+    color: var(--grey);
+    margin-top: 8px;
+  }
+  .edit-result b { color: var(--ink); }
+
+  /* ===== FOOTER NOTE ===== */
+  .footnote {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--stone-deep);
+    font-size: 11px;
+    color: var(--grey);
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 720px) {
+    .module {
+      grid-template-columns: 30px 1fr;
+      grid-template-rows: auto auto;
+    }
+    .module-info {
+      border-right: none;
+      border-bottom: 1px solid var(--stone);
+    }
+    .module-display {
+      border-right: none;
+      align-items: flex-start;
+      padding-top: 4px;
+    }
+    .module-actions {
+      grid-column: 2;
+      justify-content: flex-end;
+      padding: 10px 14px 14px;
+    }
+    .module-index {
+      grid-row: 1 / 3;
+    }
+    .history-row {
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+    .history-row-main {
+      flex-basis: 100%;
+    }
+    .history-range-col {
+      flex: 1;
+      align-items: flex-start;
+    }
+    .launch-bar {
+      flex-direction: column;
+    }
+    .launch-select-wrap-sub {
+      max-width: none;
+    }
+    .launch-toggle {
+      width: 100%;
+      padding: 12px 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .topbar { padding: 14px 16px; }
+    main { padding: 20px 16px 60px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  /* ===== AUTH SCREEN ===== */
+  .auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 380px;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 32px 28px;
+  }
+  .auth-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    text-align: center;
+  }
+  .auth-subtitle {
+    font-size: 13px;
+    color: var(--grey);
+    margin: 0 0 18px;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .auth-subtitle b { color: var(--ink); }
+  .auth-input {
+    width: 100%;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--signal);
+  }
+  .auth-error {
+    font-size: 12px;
+    color: var(--signal);
+    margin: 10px 0 0;
+    text-align: center;
+  }
+
+  /* ===== PROJECT VIEW ===== */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--grey);
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 18px;
+  }
+  .back-link:hover { color: var(--ink); }
+  .back-link svg { width: 14px; height: 14px; }
+
+  .project-header {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--ink-deep);
+    color: var(--bg);
+    padding: 18px 20px;
+    margin-bottom: 24px;
+  }
+  .project-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .project-header-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 2px;
+  }
+  .pv-color-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(244,243,240,0.4);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    background: var(--stone-deep);
+  }
+  .pv-color-dot:hover {
+    border-color: var(--bg);
+  }
+  .pv-name-display {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 2px 6px;
+    margin-left: -6px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    border-bottom: 1px dashed rgba(244,243,240,0.3);
+    text-align: left;
+  }
+  .pv-name-display:hover {
+    background: rgba(244,243,240,0.1);
+  }
+  .pv-name-input {
+    width: 240px;
+    border: 1.5px solid var(--signal);
+    background: rgba(244,243,240,0.08);
+    color: var(--bg);
+    border-radius: var(--radius);
+    padding: 3px 8px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .pv-name-input:focus { outline: none; }
+
+  .color-swatch-panel {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    background: rgba(244,243,240,0.06);
+    border: 1px solid rgba(244,243,240,0.16);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin: -2px 0 10px;
+    max-width: 200px;
+  }
+  .color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  .color-swatch:hover {
+    border-color: rgba(244,243,240,0.6);
+  }
+  .color-swatch.selected {
+    border-color: var(--bg);
+    box-shadow: 0 0 0 2px var(--ink-deep), 0 0 0 3px var(--bg);
+  }
+  .color-swatch.none-swatch {
+    background: transparent !important;
+    border: 1.5px dashed rgba(244,243,240,0.4) !important;
+    position: relative;
+  }
+  .color-swatch.none-swatch::before,
+  .color-swatch.none-swatch::after {
+    content: '';
+    position: absolute;
+    background: rgba(244,243,240,0.5);
+    top: 50%; left: 50%;
+    width: 14px;
+    height: 1.5px;
+  }
+  .color-swatch.none-swatch::before { transform: translate(-50%, -50%) rotate(45deg); }
+  .color-swatch.none-swatch::after { transform: translate(-50%, -50%) rotate(-45deg); }
+
+  .project-header-rate {
+    font-size: 12px;
+    color: var(--stone-deep);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pv-rate-display {
+    border: none;
+    background: transparent;
+    color: var(--signal);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    border-bottom: 1px dashed rgba(255,77,0,0.5);
+  }
+  .pv-rate-display:hover {
+    background: rgba(255,77,0,0.12);
+  }
+  .pv-rate-input {
+    width: 70px;
+    border: 1.5px solid var(--signal);
+    background: rgba(244,243,240,0.08);
+    color: var(--bg);
+    border-radius: var(--radius);
+    padding: 3px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+  }
+  .pv-rate-input:focus { outline: none; }
+
+  .project-header-client {
+    margin: 4px 0 2px;
+  }
+  .pv-client-display {
+    border: none;
+    background: transparent;
+    color: var(--stone-deep);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    padding: 2px 6px;
+    margin-left: -6px;
+    border-radius: var(--radius);
+    border-bottom: 1px dashed rgba(244,243,240,0.3);
+  }
+  .pv-client-display:empty::before {
+    content: '+ ajouter un client';
+    color: var(--stone-deep);
+    opacity: 0.6;
+  }
+  .pv-client-display:hover {
+    background: rgba(244,243,240,0.1);
+  }
+  .pv-client-input {
+    width: 160px;
+    border: 1.5px solid var(--stone-deep);
+    background: rgba(244,243,240,0.08);
+    color: var(--bg);
+    border-radius: var(--radius);
+    padding: 3px 8px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 12px;
+  }
+  .pv-client-input:focus { outline: none; border-color: var(--signal); }
+
+  .project-header-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .project-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .project-stat {
+    background: rgba(244,243,240,0.06);
+    border: 1px solid rgba(244,243,240,0.16);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .project-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--stone-deep);
+    margin: 0 0 4px;
+  }
+  .project-stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+  }
+  .project-stat-value.signal { color: var(--signal); }
+  .project-stat-sub {
+    font-size: 10px;
+    color: var(--stone-deep);
+    margin: 3px 0 0;
+  }
+
+  .threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(244,243,240,0.16);
+  }
+  .threshold-row label {
+    font-size: 11px;
+    color: var(--stone-deep);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .threshold-row input[type="number"] {
+    width: 64px;
+    border: 1.5px solid rgba(244,243,240,0.3);
+    background: rgba(244,243,240,0.08);
+    color: var(--bg);
+    border-radius: var(--radius);
+    padding: 5px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+  }
+  .threshold-row input[type="number"]:focus {
+    outline: none;
+    border-color: var(--signal);
+  }
+  .threshold-row .threshold-note {
+    font-size: 10px;
+    color: var(--stone-deep);
+    margin-left: auto;
+  }
+
+  /* ===== ACTIVITY CHART ===== */
+  .chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chart-mode-toggle {
+    display: flex;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-right: 6px;
+  }
+  .chart-mode-btn {
+    border: none;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .chart-mode-btn.active {
+    background: var(--ink-deep);
+    color: var(--bg);
+  }
+  .chart-mode-btn:not(.active):hover {
+    background: var(--stone);
+  }
+
+  .chart-nav-btn {
+    width: 26px;
+    height: 26px;
+    border: 1.5px solid var(--ink);
+    background: var(--bg);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--ink);
+    padding: 0;
+  }
+  .chart-nav-btn:hover { background: var(--stone); }
+  .chart-nav-btn svg { width: 14px; height: 14px; }
+
+  .chart-range-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+    white-space: nowrap;
+    min-width: 110px;
+    text-align: center;
+  }
+
+  .chart-card {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 18px 14px 10px;
+    margin-bottom: 28px;
+  }
+
+  .chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .chart-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: 26px;
+    height: 100%;
+    gap: 6px;
+  }
+
+  .chart-bar-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--grey);
+    white-space: nowrap;
+  }
+
+  .chart-bar-track {
+    width: 100%;
+    max-width: 28px;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    background: var(--bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .chart-bar-fill {
+    width: 100%;
+    background: var(--stone-deep);
+    border-radius: var(--radius) var(--radius) 0 0;
+    transition: height 0.18s ease;
+    min-height: 2px;
+  }
+  .chart-bar-col.is-today .chart-bar-fill {
+    background: var(--signal);
+  }
+  .chart-bar-col.is-below-threshold .chart-bar-fill {
+    background: var(--stone);
+  }
+
+  .chart-bar-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.02em;
+    color: var(--grey);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .chart-bar-col.is-today .chart-bar-label {
+    color: var(--signal);
+    font-weight: 700;
+  }
+
+  .chart-empty {
+    text-align: center;
+    font-size: 12px;
+    color: var(--grey);
+    padding: 30px 0 10px;
+  }
+
+  @media (max-width: 640px) {
+    .chart-bars { height: 110px; }
+    .chart-bar-col { min-width: 22px; }
+  }
+
+  .breakdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+  .breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    border: 1px solid var(--stone-deep);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    font-size: 13px;
+  }
+  .breakdown-row.is-parent {
+    border-color: var(--ink);
+    font-weight: 700;
+  }
+  .breakdown-row.is-sub {
+    margin-left: 20px;
+    border-style: dashed;
+  }
+  .breakdown-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .breakdown-own-rate {
+    color: var(--signal);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .breakdown-bar-wrap {
+    grid-column: 1 / 4;
+    height: 4px;
+    background: var(--stone);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: -2px;
+  }
+  .breakdown-bar-fill {
+    height: 100%;
+    background: var(--signal);
+  }
+  .breakdown-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .breakdown-pct {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+  }
+  .breakdown-hours {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--grey);
+    white-space: nowrap;
+  }
+  .breakdown-amount {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 64px;
+    text-align: right;
+  }
+
+  .subtask-manage {
+    border: 2px dashed var(--stone-deep);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 28px;
+  }
+  .subtask-manage-title {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+  .subtask-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .subtask-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 5px 6px 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .subtask-chip button {
+    border: none;
+    background: transparent;
+    color: var(--grey);
+    cursor: pointer;
+    display: flex;
+    padding: 2px;
+  }
+  .subtask-chip button:hover { color: var(--signal); }
+  .subtask-chip button svg { width: 12px; height: 12px; }
+
+  .subtask-chip-rate {
+    font-family: 'Space Mono', monospace !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--grey);
+    border: 1px dashed var(--stone-deep) !important;
+    border-radius: var(--radius) !important;
+    padding: 3px 7px !important;
+    white-space: nowrap;
+  }
+  .subtask-chip-rate:hover {
+    color: var(--signal) !important;
+    border-color: var(--signal) !important;
+    background: rgba(255,77,0,0.06);
+  }
+
+  .subtask-add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .subtask-add-row input {
+    flex: 1;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    min-width: 120px;
+  }
+  .subtask-rate-input {
+    flex: 0 0 110px !important;
+    font-family: 'Space Mono', monospace !important;
+  }
+  .subtask-add-row input:focus {
+    outline: none;
+    border-color: var(--signal);
+  }
+  .subtask-add-row button {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  /* ===== INVOICING VIEW ===== */
+  .invoicing-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .invoicing-stat {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 12px 14px;
+  }
+  .invoicing-stat-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin: 0 0 4px;
+  }
+  .invoicing-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+  }
+  .invoicing-stat-sub {
+    font-size: 10px;
+    color: var(--stone-deep);
+    margin: 3px 0 0;
+  }
+
+  #invoice-new-panel.open { display: block; }
+  #projection-new-panel.open { display: block; }
+
+  .vat-toggle {
+    display: flex;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    overflow: hidden;
+    width: fit-content;
+  }
+  .vat-toggle button {
+    border: none;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 9px 14px;
+    cursor: pointer;
+  }
+  .vat-toggle button.active {
+    background: var(--ink-deep);
+    color: var(--bg);
+  }
+
+  .year-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 0 10px;
+  }
+  .year-select-wrap::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    transform: rotate(45deg);
+    margin-left: -4px;
+    pointer-events: none;
+  }
+  .year-select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    padding: 9px 14px 9px 0;
+    cursor: pointer;
+  }
+  .year-select-wrap select:focus { outline: none; }
+
+  .amount-breakdown {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--grey);
+    margin-top: 4px;
+  }
+  .amount-breakdown b { color: var(--ink); font-size: 13px; }
+
+  .invoice-table-wrap {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    overflow: hidden;
+    overflow-x: auto;
+    margin-bottom: 28px;
+  }
+  .invoice-table-head {
+    display: grid;
+    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 50px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--ink-deep);
+    min-width: 820px;
+  }
+  .invoice-sort-btn {
+    border: none;
+    background: transparent;
+    color: var(--stone-deep);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .invoice-sort-btn:hover { color: var(--bg); }
+  .invoice-sort-btn.sort-active { color: var(--signal); }
+  .invoice-sort-btn .sort-arrow {
+    font-size: 9px;
+  }
+  .invoice-th {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--stone-deep);
+  }
+
+  .invoice-table-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 820px;
+  }
+
+  .invoice-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 50px;
+    gap: 8px;
+    align-items: center;
+    padding: 11px 14px;
+    border-top: 1px solid var(--stone);
+    font-size: 13px;
+  }
+  .invoice-row:hover { background: var(--bg); }
+
+  .invoice-number {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .invoice-client {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .invoice-project-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--grey);
+    font-size: 12px;
+  }
+  .invoice-date {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--grey);
+  }
+  .invoice-vat {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+    text-align: right;
+  }
+  .invoice-amount-ht {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--grey);
+    text-align: right;
+  }
+  .invoice-amount-ttc {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .invoice-status-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1.5px solid var(--stone-deep);
+    background: var(--bg);
+    color: var(--grey);
+    border-radius: var(--radius);
+    padding: 4px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .invoice-status-btn.status-sent {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .invoice-status-btn.status-paid {
+    border-color: var(--signal);
+    background: var(--signal);
+    color: #FFFFFF;
+  }
+
+  .invoice-row-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .invoice-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--grey);
+    font-size: 13px;
+  }
+
+  /* ===== PROJECTION TABLE ===== */
+  .projection-table-wrap {
+    border: 2px solid var(--stone-deep);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    overflow: hidden;
+    overflow-x: auto;
+  }
+  .projection-table-head {
+    display: grid;
+    grid-template-columns: 1fr 1fr 110px 60px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--stone);
+    min-width: 480px;
+  }
+  .projection-table-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 480px;
+  }
+  .projection-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 110px 60px;
+    gap: 8px;
+    align-items: center;
+    padding: 11px 14px;
+    border-top: 1px solid var(--stone);
+    font-size: 13px;
+  }
+  .projection-row:hover { background: var(--bg); }
+  .projection-amount {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: right;
+  }
+  .projection-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--grey);
+    font-size: 13px;
+  }
+
+  @media (max-width: 800px) {
+    .invoicing-stats-row {
+      grid-template-columns: 1fr 1fr;
+    }
+    .invoice-table-head,
+    .projection-table-head {
+      display: none;
+    }
+    .invoice-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "number status"
+        "client client"
+        "project project"
+        "date vat"
+        "ht ttc"
+        "actions actions";
+      row-gap: 4px;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+    .invoice-table-body { min-width: 0; }
+    .invoice-number { grid-area: number; }
+    .invoice-status-btn { grid-area: status; justify-self: end; }
+    .invoice-client { grid-area: client; }
+    .invoice-project-name { grid-area: project; }
+    .invoice-date { grid-area: date; }
+    .invoice-vat { grid-area: vat; justify-self: end; }
+    .invoice-amount-ht { grid-area: ht; text-align: left; }
+    .invoice-amount-ttc { grid-area: ttc; }
+    .invoice-row-actions { grid-area: actions; }
+
+    .projection-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "name name"
+        "client client"
+        "amount actions";
+      row-gap: 4px;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+    .projection-table-body { min-width: 0; }
+  }
+
+  /* ===== CLIENTS VIEW ===== */
+  .clients-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .client-card {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    overflow: hidden;
+  }
+
+  .client-card-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .client-card-head:hover { background: var(--bg); }
+
+  .client-card-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--ink-deep);
+    color: var(--stone);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .client-card-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .client-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .client-card-sub {
+    font-size: 12px;
+    color: var(--grey);
+    margin: 2px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .client-card-stats {
+    display: flex;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .client-card-stat {
+    text-align: right;
+  }
+  .client-card-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin: 0;
+  }
+  .client-card-stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 1px 0 0;
+  }
+
+  .client-card-chevron {
+    color: var(--grey);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .client-card.open .client-card-chevron {
+    transform: rotate(90deg);
+  }
+
+  .client-card-body {
+    display: none;
+    border-top: 1px solid var(--stone-deep);
+    padding: 16px;
+  }
+  .client-card.open .client-card-body {
+    display: block;
+  }
+
+  .client-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .client-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .client-field.full {
+    grid-column: 1 / 3;
+  }
+  .client-field label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+  }
+  .client-field input,
+  .client-field textarea {
+    border: 1.5px solid var(--stone-deep);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+    resize: vertical;
+  }
+  .client-field input:focus,
+  .client-field textarea:focus {
+    outline: none;
+    border-color: var(--signal);
+  }
+  .client-field input.mono {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .client-card-projects {
+    border-top: 1px dashed var(--stone-deep);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+  .client-card-projects-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+  .client-project-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--stone-deep);
+    border-radius: var(--radius);
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 6px 6px 0;
+    cursor: pointer;
+  }
+  .client-project-chip:hover { border-color: var(--signal); color: var(--signal); }
+
+  .client-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--stone);
+  }
+
+  .clients-empty {
+    border: 2px dashed var(--stone-deep);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--grey);
+    font-size: 14px;
+  }
+  .clients-empty strong {
+    display: block;
+    color: var(--ink);
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+
+  @media (max-width: 640px) {
+    .client-field-grid {
+      grid-template-columns: 1fr;
+    }
+    .client-field.full {
+      grid-column: 1;
+    }
+    .client-card-stats {
+      display: none;
+    }
+  }
+
+  /* ===== DASHBOARD VIEW ===== */
+  .dash-chart-card {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    padding: 24px 20px 16px;
+    margin-bottom: 28px;
+  }
+
+  .dash-year-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    height: 200px;
+    padding: 0 4px;
+  }
+
+  .dash-year-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1;
+    max-width: 120px;
+    height: 100%;
+    gap: 8px;
+  }
+
+  .dash-year-delta {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .dash-year-delta.up { color: var(--signal); }
+  .dash-year-delta.down { color: var(--grey); }
+
+  .dash-year-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .dash-year-bar-track {
+    width: 100%;
+    max-width: 64px;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+  }
+  .dash-year-bar-fill {
+    width: 100%;
+    background: var(--ink-deep);
+    border-radius: var(--radius) var(--radius) 0 0;
+    transition: height 0.2s ease;
+    min-height: 3px;
+  }
+  .dash-year-col.is-current .dash-year-bar-fill {
+    background: var(--signal);
+  }
+
+  .dash-year-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--grey);
+    letter-spacing: 0.04em;
+  }
+  .dash-year-col.is-current .dash-year-label {
+    color: var(--ink);
+  }
+
+  .dash-empty {
+    text-align: center;
+    padding: 30px 0 10px;
+    color: var(--grey);
+    font-size: 13px;
+  }
+
+  .dash-client-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dash-client-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto 90px;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--stone-deep);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+  }
+  .dash-client-rank {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--stone-deep);
+  }
+  .dash-client-row:nth-child(1) .dash-client-rank { color: var(--signal); }
+
+  .dash-client-info {
+    min-width: 0;
+  }
+  .dash-client-name {
+    font-weight: 700;
+    font-size: 14px;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dash-client-bar-wrap {
+    height: 4px;
+    background: var(--stone);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .dash-client-bar-fill {
+    height: 100%;
+    background: var(--signal);
+  }
+
+  .dash-client-amount {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .dash-client-pct {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--grey);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .dash-year-bars {
+      gap: 10px;
+      overflow-x: auto;
+    }
+    .dash-year-col {
+      min-width: 64px;
+    }
+    .dash-client-row {
+      grid-template-columns: 24px 1fr;
+      grid-template-rows: auto auto;
+      row-gap: 4px;
+    }
+    .dash-client-amount,
+    .dash-client-pct {
+      grid-column: 2;
+      text-align: right;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .project-stats-row {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .breakdown-row {
+      grid-template-columns: 1fr auto;
+    }
+    .breakdown-amount { min-width: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="logo" style="margin-bottom:24px; justify-content:center;">
+      <div class="logo-mark"><span></span></div>
+      <div class="logo-text">GRID<small>temps · facturation · clients</small></div>
+    </div>
+
+    <div id="auth-step-request">
+      <p class="auth-title">Connexion</p>
+      <p class="auth-subtitle">Reçois un lien de connexion par email — pas de mot de passe.</p>
+      <input type="email" id="auth-email-input" placeholder="ton@email.com" class="auth-input">
+      <button class="btn btn-primary" id="auth-send-btn" style="width:100%; justify-content:center; margin-top:10px;">Envoyer le lien</button>
+      <p class="auth-error" id="auth-error" style="display:none;"></p>
+    </div>
+
+    <div id="auth-step-sent" style="display:none;">
+      <p class="auth-title">Vérifie ta boîte mail</p>
+      <p class="auth-subtitle">Un lien de connexion a été envoyé à <b id="auth-sent-email"></b>. Clique sur ce lien depuis cet appareil pour te connecter.</p>
+      <button class="btn" id="auth-resend-btn" style="width:100%; justify-content:center; margin-top:10px;">Renvoyer le lien</button>
+    </div>
+
+    <div id="auth-step-confirm" style="display:none;">
+      <p class="auth-title">Confirmer la connexion</p>
+      <p class="auth-subtitle">Confirme ton email pour finaliser la connexion sur cet appareil.</p>
+      <input type="email" id="auth-confirm-email-input" placeholder="ton@email.com" class="auth-input">
+      <button class="btn btn-primary" id="auth-confirm-btn" style="width:100%; justify-content:center; margin-top:10px;">Confirmer</button>
+      <p class="auth-error" id="auth-confirm-error" style="display:none;"></p>
+    </div>
+
+    <div id="auth-step-loading">
+      <p class="auth-subtitle" style="text-align:center;">Connexion en cours…</p>
+    </div>
+  </div>
+</div>
+
+<div id="app-root" style="display:none;">
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark"><span></span></div>
+    <div class="logo-text">GRID<small>temps · facturation · clients</small></div>
+  </div>
+  <nav class="main-tabs" id="main-tabs">
+    <button class="main-tab active" data-tab="timeunit">TimeUnit</button>
+    <button class="main-tab" data-tab="projects">Projets</button>
+    <button class="main-tab" data-tab="invoicing">Facturation</button>
+    <button class="main-tab" data-tab="clients">Clients</button>
+    <button class="main-tab" data-tab="dashboard">Bilan</button>
+  </nav>
+</div>
+
+<main>
+  <div id="home-view">
+    <div class="launch-bar" id="launch-bar">
+      <div class="launch-select-wrap" id="launch-select-wrap">
+        <select class="launch-select" id="launch-select">
+          <option value="">Choisir un projet…</option>
+        </select>
+      </div>
+      <div class="launch-select-wrap launch-select-wrap-sub" id="launch-subtask-wrap" style="display:none;">
+        <select class="launch-select" id="launch-subtask-select">
+          <option value="">Sans sous-tâche</option>
+        </select>
+      </div>
+      <div class="launch-live" id="launch-live">
+        <span class="launch-live-dot"></span>
+        <span class="launch-live-name" id="launch-live-name"></span>
+        <span class="launch-live-sub mono" id="launch-live-sub"></span>
+        <span class="launch-live-lcd mono" id="launch-live-lcd">00:00:00</span>
+      </div>
+      <button class="launch-toggle" id="launch-toggle" disabled>START</button>
+    </div>
+
+    <div class="section-head">
+      <p class="section-title">Historique des sessions</p>
+    </div>
+    <div class="history-list" id="history-list"></div>
+    <div class="history-empty" id="history-empty" style="display:none;">
+      Aucune session enregistrée pour l'instant.
+    </div>
+  </div>
+
+  <div id="projects-view" style="display:none;">
+    <div class="section-head">
+      <p class="section-title">Projets actifs</p>
+      <button class="btn btn-primary" id="add-project-btn">
+        <span class="btn-plus"></span> Nouveau projet
+      </button>
+    </div>
+
+    <div class="new-panel" id="new-panel">
+      <div class="field-row">
+        <div class="field">
+          <label for="np-name">Nom du projet</label>
+          <input type="text" id="np-name" placeholder="Refonte site web">
+        </div>
+        <div class="field">
+          <label for="np-client">Client</label>
+          <select id="np-client"><option value="">Aucun client</option></select>
+        </div>
+        <div class="field" style="max-width: 140px;">
+          <label for="np-rate">Taux horaire (€)</label>
+          <input type="number" id="np-rate" class="mono" placeholder="50" min="0" step="0.5">
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn" id="np-cancel">Annuler</button>
+        <button class="btn btn-primary" id="np-confirm">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="modules" id="modules-list"></div>
+    <div class="empty-state" id="empty-state" style="display:none;">
+      <strong>Aucun projet pour l'instant</strong>
+      Crée ton premier projet pour commencer à suivre ton temps.
+    </div>
+
+    <div class="archived-section" id="archived-section" style="display:none;">
+      <button class="archived-toggle" id="archived-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        <span id="archived-toggle-label">Projets archivés</span>
+      </button>
+      <div class="modules" id="archived-modules-list" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="project-view" style="display:none;">
+    <button class="back-link" id="back-to-home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      Retour
+    </button>
+
+    <div class="project-header">
+      <div class="project-header-top">
+        <div>
+          <p class="project-header-name-row">
+            <button class="pv-color-dot" id="pv-color-dot" aria-label="Changer la couleur du projet"></button>
+            <button class="pv-name-display" id="pv-name-display"></button>
+            <input type="text" class="pv-name-input" id="pv-name-input" style="display:none;">
+          </p>
+          <div class="color-swatch-panel" id="color-swatch-panel" style="display:none;"></div>
+          <p class="project-header-client">
+            <button class="pv-client-display" id="pv-client-display"></button>
+            <select class="pv-client-input" id="pv-client-input" style="display:none;"></select>
+          </p>
+          <p class="project-header-rate">
+            Taux
+            <button class="pv-rate-display" id="pv-rate-display"></button>
+            <input type="number" class="pv-rate-input" id="pv-rate-input" min="0" step="0.5" style="display:none;">
+          </p>
+        </div>
+        <div class="project-header-actions">
+          <button class="icon-btn" id="pv-archive" style="color: var(--stone-deep);" aria-label="Archiver le projet"></button>
+          <button class="icon-btn" id="pv-delete" style="color: var(--stone-deep);" aria-label="Supprimer le projet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div class="project-stats-row">
+        <div class="project-stat">
+          <p class="project-stat-label">Temps total</p>
+          <p class="project-stat-value mono" id="pv-total-hours">0h</p>
+        </div>
+        <div class="project-stat">
+          <p class="project-stat-label">Montant total</p>
+          <p class="project-stat-value mono signal" id="pv-total-amount">0 €</p>
+        </div>
+        <div class="project-stat">
+          <p class="project-stat-label">Jours actifs</p>
+          <p class="project-stat-value mono" id="pv-active-days">0</p>
+          <p class="project-stat-sub" id="pv-active-days-sub"></p>
+        </div>
+        <div class="project-stat">
+          <p class="project-stat-label">Moy. / jour actif</p>
+          <p class="project-stat-value mono" id="pv-avg-day">0h</p>
+        </div>
+      </div>
+      <div class="threshold-row">
+        <label for="pv-threshold">Seuil minimum par jour</label>
+        <input type="number" id="pv-threshold" min="0" step="1" value="0">
+        <label for="pv-threshold" style="margin-left:-4px;">min</label>
+        <span class="threshold-note">N'affecte que le compteur « jours actifs »</span>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <p class="section-title">Activité</p>
+      <div class="chart-controls">
+        <div class="chart-mode-toggle">
+          <button class="chart-mode-btn active" id="chart-mode-week" data-mode="week">Semaine</button>
+          <button class="chart-mode-btn" id="chart-mode-month" data-mode="month">Mois</button>
+        </div>
+        <button class="chart-nav-btn" id="chart-nav-prev" aria-label="Période précédente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <span class="chart-range-label" id="chart-range-label"></span>
+        <button class="chart-nav-btn" id="chart-nav-next" aria-label="Période suivante">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-bars" id="chart-bars"></div>
+      <p class="chart-empty" id="chart-empty" style="display:none;">Aucune activité sur cette période.</p>
+    </div>
+
+    <div class="section-head">
+      <p class="section-title">Répartition par tâche</p>
+    </div>
+    <div class="breakdown-list" id="breakdown-list"></div>
+
+    <div class="subtask-manage">
+      <p class="subtask-manage-title">Sous-tâches du projet</p>
+      <div class="subtask-chips" id="subtask-chips"></div>
+      <div class="subtask-add-row">
+        <input type="text" id="subtask-new-name" placeholder="Nouvelle sous-tâche…">
+        <input type="number" id="subtask-new-rate" placeholder="Taux €/h" min="0" step="0.5" class="subtask-rate-input">
+        <button class="btn" id="subtask-add-btn">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <p class="section-title">Historique complet</p>
+      <button class="btn" id="pv-export-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px; height:13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Exporter
+      </button>
+    </div>
+    <div class="history-list" id="pv-history-list"></div>
+    <div class="history-empty" id="pv-history-empty" style="display:none;">
+      Aucune session enregistrée pour ce projet.
+    </div>
+  </div>
+
+  <div id="invoicing-view" style="display:none;">
+    <button class="back-link" id="back-from-invoicing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      Retour
+    </button>
+
+    <div class="section-head">
+      <p class="section-title">Facturation</p>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="year-select-wrap" id="year-select-wrap">
+          <select id="inv-year-select"></select>
+        </div>
+        <button class="btn btn-primary" id="add-invoice-btn">
+          <span class="btn-plus"></span> Nouvelle facture
+        </button>
+      </div>
+    </div>
+
+    <div class="invoicing-stats-row">
+      <div class="invoicing-stat">
+        <p class="invoicing-stat-label" id="inv-year-label-ht">Facturé cette année (HT)</p>
+        <p class="invoicing-stat-value mono signal" id="inv-total-year-ht">0 €</p>
+        <p class="invoicing-stat-sub" id="inv-total-year-ttc"></p>
+      </div>
+      <div class="invoicing-stat">
+        <p class="invoicing-stat-label">En attente de paiement</p>
+        <p class="invoicing-stat-value mono" id="inv-total-pending">0 €</p>
+      </div>
+      <div class="invoicing-stat">
+        <p class="invoicing-stat-label">Nb. factures</p>
+        <p class="invoicing-stat-value mono" id="inv-count">0</p>
+      </div>
+      <div class="invoicing-stat">
+        <p class="invoicing-stat-label">Projection en cours</p>
+        <p class="invoicing-stat-value mono" id="inv-total-projection">0 €</p>
+      </div>
+    </div>
+
+    <div class="new-panel" id="invoice-new-panel">
+      <div class="field-row">
+        <div class="field" style="max-width: 130px;">
+          <label for="inv-new-number">N° facture</label>
+          <input type="text" id="inv-new-number" class="mono" placeholder="2026-014">
+        </div>
+        <div class="field">
+          <label for="inv-new-project">Projet</label>
+          <select id="inv-new-project"></select>
+        </div>
+        <div class="field" style="max-width: 130px;">
+          <label for="inv-new-date">Date</label>
+          <input type="date" id="inv-new-date">
+        </div>
+        <div class="field" style="max-width: 120px;">
+          <label for="inv-new-amount">Montant HT (€)</label>
+          <input type="number" id="inv-new-amount" class="mono" placeholder="1200" min="0" step="0.5">
+        </div>
+        <div class="field" style="max-width: 140px;">
+          <label>TVA</label>
+          <div class="vat-toggle" id="inv-new-vat-toggle">
+            <button type="button" class="active" data-vat="10">10%</button>
+            <button type="button" data-vat="20">20%</button>
+          </div>
+        </div>
+      </div>
+      <p class="amount-breakdown" id="inv-new-breakdown">TTC : <b>0 €</b></p>
+      <div class="panel-actions">
+        <button class="btn" id="inv-new-cancel">Annuler</button>
+        <button class="btn btn-primary" id="inv-new-confirm">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="invoice-table-wrap">
+      <div class="invoice-table-head">
+        <button class="invoice-sort-btn" data-sort="number">N° facture</button>
+        <button class="invoice-sort-btn" data-sort="client">Client</button>
+        <button class="invoice-sort-btn" data-sort="project">Projet</button>
+        <button class="invoice-sort-btn" data-sort="date">Date</button>
+        <span class="invoice-th" style="text-align:right;">TVA</span>
+        <span class="invoice-th" style="text-align:right;">HT</span>
+        <button class="invoice-sort-btn" data-sort="ttc" style="text-align:right; justify-content:flex-end;">TTC</button>
+        <span class="invoice-th">Statut</span>
+        <span class="invoice-th"></span>
+      </div>
+      <div class="invoice-table-body" id="invoice-table-body"></div>
+      <div class="invoice-empty" id="invoice-empty" style="display:none;">
+        Aucune facture pour l'instant.
+      </div>
+    </div>
+
+    <div class="section-head">
+      <p class="section-title">Projets en cours — projection</p>
+      <button class="btn btn-primary" id="add-projection-btn">
+        <span class="btn-plus"></span> Ajouter une ligne
+      </button>
+    </div>
+
+    <div class="new-panel" id="projection-new-panel">
+      <div class="field-row">
+        <div class="field">
+          <label for="proj-new-project">Projet</label>
+          <select id="proj-new-project"></select>
+        </div>
+        <div class="field" style="max-width: 150px;">
+          <label for="proj-new-amount">Montant estimatif (€)</label>
+          <input type="number" id="proj-new-amount" class="mono" placeholder="800" min="0" step="0.5">
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn" id="proj-new-cancel">Annuler</button>
+        <button class="btn btn-primary" id="proj-new-confirm">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="projection-table-wrap">
+      <div class="projection-table-head">
+        <span class="invoice-th">Projet</span>
+        <span class="invoice-th">Client</span>
+        <span class="invoice-th" style="text-align:right;">Montant est.</span>
+        <span class="invoice-th"></span>
+      </div>
+      <div class="projection-table-body" id="projection-table-body"></div>
+      <div class="projection-empty" id="projection-empty" style="display:none;">
+        Aucun projet en projection pour l'instant.
+      </div>
+    </div>
+  </div>
+
+  <div id="clients-view" style="display:none;">
+    <div class="section-head">
+      <p class="section-title">Clients</p>
+      <button class="btn btn-primary" id="add-client-btn">
+        <span class="btn-plus"></span> Nouveau client
+      </button>
+    </div>
+
+    <div class="new-panel" id="client-new-panel">
+      <div class="field-row">
+        <div class="field">
+          <label for="cl-new-name">Nom du client / société</label>
+          <input type="text" id="cl-new-name" placeholder="Dupont SAS">
+        </div>
+        <div class="field">
+          <label for="cl-new-contact">Contact principal</label>
+          <input type="text" id="cl-new-contact" placeholder="Jean Dupont">
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn" id="cl-new-cancel">Annuler</button>
+        <button class="btn btn-primary" id="cl-new-confirm">Ajouter</button>
+      </div>
+    </div>
+
+    <div class="clients-list" id="clients-list"></div>
+    <div class="clients-empty" id="clients-empty" style="display:none;">
+      <strong>Aucun client pour l'instant</strong>
+      Ajoute ton premier client pour lui rattacher des projets et des factures.
+    </div>
+  </div>
+
+  <div id="dashboard-view" style="display:none;">
+    <div class="section-head">
+      <p class="section-title">Bilan</p>
+    </div>
+
+    <div class="section-head" style="margin-top:0;">
+      <p class="section-subtitle">Facturé par année (HT)</p>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-year-bars" id="dash-year-bars"></div>
+      <p class="dash-empty" id="dash-year-empty" style="display:none;">Aucune facture enregistrée pour l'instant.</p>
+    </div>
+
+    <div class="section-head">
+      <p class="section-subtitle">Classement clients</p>
+      <div class="year-select-wrap" id="dash-period-wrap">
+        <select id="dash-period-select">
+          <option value="all">Toutes années</option>
+        </select>
+      </div>
+    </div>
+    <div class="dash-client-list" id="dash-client-list"></div>
+    <p class="dash-empty" id="dash-client-empty" style="display:none;">Aucune facture sur cette période.</p>
+  </div>
+
+  <div class="footnote">
+    <span id="sync-status">GRID — connexion en cours…</span>
+    <span id="clock" class="mono"></span>
+  </div>
+</main>
+
+</div>
+
+<!-- ===== FIREBASE SDK ===== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // ===========================================================
+  // CONFIGURATION FIREBASE — à remplacer par la config de ton projet
+  // Firebase Console > Paramètres du projet > Tes applications > Config
+  // ===========================================================
+  var firebaseConfig = {
+    apiKey: "AIzaSyDTIFcDNMy4XlMQqzLiE4FwDTIOC_gNVs8",
+    authDomain: "grid-ca7f0.firebaseapp.com",
+    projectId: "grid-ca7f0",
+    storageBucket: "grid-ca7f0.firebasestorage.app",
+    messagingSenderId: "548286589482",
+    appId: "1:548286589482:web:099b7a9db471975f86f153"
+  };
+
+  var firebaseApp = initializeApp(firebaseConfig);
+  var auth = getAuth(firebaseApp);
+  var db = getFirestore(firebaseApp);
+
+  // URL de redirection du lien magique : la page elle-même
+  var actionCodeSettings = {
+    url: window.location.href.split('?')[0],
+    handleCodeInApp: true
+  };
+
+  function showAuthStep(step) {
+    ['request', 'sent', 'confirm', 'loading'].forEach(function (s) {
+      document.getElementById('auth-step-' + s).style.display = (s === step) ? 'block' : 'none';
+    });
+  }
+
+  function showAuthError(message) {
+    var el = document.getElementById('auth-error');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  // ===========================================================
+  // RESTRICTION D'ACCÈS — seul cet email peut se connecter à GRID
+  // ===========================================================
+  var ALLOWED_EMAIL = "sebastien.cordina@gmail.com";
+
+  // ----- Envoi du lien magique -----
+  document.getElementById('auth-send-btn').addEventListener('click', function () {
+    var email = document.getElementById('auth-email-input').value.trim();
+    if (!email) { showAuthError('Entre une adresse email.'); return; }
+    document.getElementById('auth-error').style.display = 'none';
+
+    if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+      showAuthError('Cette adresse email n\'est pas autorisée à accéder à GRID.');
+      return;
+    }
+
+    sendSignInLinkToEmail(auth, email, actionCodeSettings).then(function () {
+      window.localStorage.setItem('grid-auth-email', email);
+      document.getElementById('auth-sent-email').textContent = email;
+      showAuthStep('sent');
+    }).catch(function (err) {
+      showAuthError("Erreur d'envoi : " + err.message);
+    });
+  });
+
+  document.getElementById('auth-resend-btn').addEventListener('click', function () {
+    showAuthStep('request');
+  });
+
+  // ----- Confirmation si l'email n'est pas mémorisé sur cet appareil -----
+  document.getElementById('auth-confirm-btn').addEventListener('click', function () {
+    var email = document.getElementById('auth-confirm-email-input').value.trim();
+    if (!email) { document.getElementById('auth-confirm-error').style.display = 'block'; return; }
+    if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+      var errEl = document.getElementById('auth-confirm-error');
+      errEl.textContent = 'Cette adresse email n\'est pas autorisée à accéder à GRID.';
+      errEl.style.display = 'block';
+      return;
+    }
+    completeSignIn(email);
+  });
+
+  function completeSignIn(email) {
+    showAuthStep('loading');
+    signInWithEmailLink(auth, email, window.location.href).then(function () {
+      window.localStorage.removeItem('grid-auth-email');
+      var cleanUrl = window.location.href.split('?')[0];
+      window.history.replaceState({}, document.title, cleanUrl);
+    }).catch(function (err) {
+      showAuthStep('request');
+      showAuthError('Lien invalide ou expiré : ' + err.message);
+    });
+  }
+
+  // ----- Au chargement : est-on en train de cliquer un lien magique ? -----
+  if (isSignInWithEmailLink(auth, window.location.href)) {
+    var savedEmail = window.localStorage.getItem('grid-auth-email');
+    if (savedEmail) {
+      completeSignIn(savedEmail);
+    } else {
+      showAuthStep('confirm');
+    }
+  } else {
+    showAuthStep('request');
+  }
+
+  // ----- État de connexion -----
+  var firestoreUnsubscribe = null;
+
+  onAuthStateChanged(auth, function (user) {
+    if (user) {
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-root').style.display = 'block';
+      window.GRID_USER_ID = user.uid;
+      window.GRID_USER_EMAIL = user.email;
+      window.dispatchEvent(new CustomEvent('grid-user-ready', { detail: { uid: user.uid } }));
+    } else {
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app-root').style.display = 'none';
+      if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
+    }
+  });
+
+  // ----- Pont Firestore exposé pour le script principal (non-module) -----
+  window.gridFirestore = {
+    loadState: function (uid) {
+      return getDoc(doc(db, 'gridUsers', uid)).then(function (snap) {
+        return snap.exists() ? snap.data() : null;
+      });
+    },
+    saveState: function (uid, stateData) {
+      return setDoc(doc(db, 'gridUsers', uid), stateData);
+    },
+    subscribe: function (uid, callback) {
+      if (firestoreUnsubscribe) firestoreUnsubscribe();
+      firestoreUnsubscribe = onSnapshot(doc(db, 'gridUsers', uid), function (snap) {
+        callback(snap.exists() ? snap.data() : null);
+      });
+      return firestoreUnsubscribe;
+    },
+    signOut: function () {
+      return signOut(auth);
+    }
+  };
+</script>
+
+<script>
+(function () {
+  // ===== DEMO DATA (interface only, no persistence yet) =====
+  var state = {
+    projects: [
+      {
+        id: 'p1', name: 'Refonte site web', client: 'Dupont SAS', clientId: 'cl1', color: '#2E7DD1', rate: 55, archived: false,
+        subtasks: [
+          { id: 's1', name: 'Intégration', rate: null },
+          { id: 's2', name: 'Recherche UX', rate: 70 }
+        ]
+      },
+      {
+        id: 'p2', name: 'Identité visuelle', client: 'Studio Lambert', clientId: 'cl2', color: '#C04CC2', rate: 48, archived: false,
+        subtasks: [
+          { id: 's3', name: 'Logo', rate: null }
+        ]
+      },
+      { id: 'p3', name: 'Bénévolat', client: 'Asso Quartier', clientId: 'cl3', rate: 0, archived: false, subtasks: [] }
+    ],
+    entries: [
+      { id: 'e1',  projectId: 'p1', subtaskId: null, seconds: 7380, startedAt: '2026-06-17T09:12:00' },
+      { id: 'e2',  projectId: 'p1', subtaskId: 's1', seconds: 5400, startedAt: '2026-06-17T14:00:00' },
+      { id: 'e3',  projectId: 'p2', subtaskId: 's3', seconds: 3600, startedAt: '2026-06-17T10:30:00' },
+      { id: 'e4',  projectId: 'p1', subtaskId: 's2', seconds: 2700, startedAt: '2026-06-16T18:00:00' },
+      { id: 'e5',  projectId: 'p3', subtaskId: null, seconds: 4200, startedAt: '2026-06-16T11:00:00' },
+      { id: 'e6',  projectId: 'p2', subtaskId: null, seconds: 1800, startedAt: '2026-06-16T09:15:00' },
+      { id: 'e7',  projectId: 'p1', subtaskId: 's1', seconds: 6000, startedAt: '2026-06-15T16:20:00' },
+      { id: 'e8',  projectId: 'p1', subtaskId: null, seconds: 3300, startedAt: '2026-06-15T09:00:00' },
+      { id: 'e9',  projectId: 'p2', subtaskId: 's3', seconds: 5100, startedAt: '2026-06-12T13:40:00' },
+      { id: 'e10', projectId: 'p3', subtaskId: null, seconds: 2400, startedAt: '2026-06-12T10:00:00' },
+      { id: 'e11', projectId: 'p1', subtaskId: null, seconds: 1500, startedAt: '2026-06-10T15:00:00' }
+    ],
+    activeTimer: { projectId: 'p1', subtaskId: null, startedAt: Date.now() - 1000 * 60 * 22 },
+    invoices: [
+      { id: 'inv-24a', number: '2024-005', projectId: 'p1', date: '2024-03-12', amount: 980, vat: 20, status: 'paid' },
+      { id: 'inv-24b', number: '2024-014', projectId: 'p2', date: '2024-09-20', amount: 410, vat: 10, status: 'paid' },
+      { id: 'inv0', number: '2025-021', projectId: 'p2', date: '2025-11-14', amount: 540, vat: 20, status: 'paid' },
+      { id: 'inv1', number: '2026-008', projectId: 'p1', date: '2026-05-30', amount: 1450, vat: 20, status: 'paid' },
+      { id: 'inv2', number: '2026-011', projectId: 'p2', date: '2026-06-10', amount: 620, vat: 10, status: 'sent' },
+      { id: 'inv3', number: '2026-012', projectId: 'p1', date: '2026-06-16', amount: 980, vat: 20, status: 'sent' }
+    ],
+    projections: [
+      { id: 'proj1', projectId: 'p3', amount: 300 }
+    ],
+    clients: [
+      {
+        id: 'cl1', name: 'Dupont SAS', contact: 'Jean Dupont',
+        email: 'jean.dupont@dupont-sas.fr', phone: '06 12 34 56 78',
+        address: '14 rue de la Paix, 75002 Paris',
+        siret: '852 123 456 00012', notes: ''
+      },
+      {
+        id: 'cl2', name: 'Studio Lambert', contact: 'Camille Lambert',
+        email: 'contact@studiolambert.com', phone: '06 98 76 54 32',
+        address: '', siret: '', notes: 'Préfère être contactée par email plutôt que par téléphone.'
+      },
+      {
+        id: 'cl3', name: 'Asso Quartier', contact: '',
+        email: 'contact@assoquartier.org', phone: '',
+        address: '', siret: '', notes: 'Bénévolat, pas de facturation.'
+      }
+    ]
+  };
+
+  var HISTORY_LIMIT = 10;
+  var openEditId = null;
+  var editMode = 'duration'; // 'duration' | 'range'
+  var currentView = 'home'; // 'home' | 'project'
+  var currentProjectId = null;
+  var projectThresholds = {}; // projectId -> minutes
+  var chartMode = 'week'; // 'week' | 'month'
+  var chartOffset = 0; // 0 = période courante, -1 = précédente, etc.
+  var invoiceSortKey = 'date';
+  var invoiceSortDir = 'desc'; // 'asc' | 'desc'
+
+  function genId() {
+    return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  // ===== FIRESTORE PERSISTENCE =====
+  var gridUid = null;
+  var saveTimer = null;
+  var isLoadingFromRemote = false;
+  var hasLoadedOnce = false;
+
+  function setSyncStatus(text) {
+    var el = document.getElementById('sync-status');
+    if (el) el.textContent = text;
+  }
+
+  function scheduleSave() {
+    if (!gridUid || isLoadingFromRemote || !hasLoadedOnce) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    setSyncStatus('GRID — sauvegarde…');
+    saveTimer = setTimeout(function () {
+      window.gridFirestore.saveState(gridUid, state).then(function () {
+        setSyncStatus('GRID — synchronisé');
+      }).catch(function (err) {
+        setSyncStatus('GRID — erreur de sauvegarde');
+        console.error('Erreur sauvegarde Firestore', err);
+      });
+    }, 900);
+  }
+
+  function applyRemoteState(remoteData) {
+    isLoadingFromRemote = true;
+    state.projects = remoteData.projects || [];
+    state.entries = remoteData.entries || [];
+    state.activeTimer = remoteData.activeTimer || null;
+    state.invoices = remoteData.invoices || [];
+    state.projections = remoteData.projections || [];
+    state.clients = remoteData.clients || [];
+    isLoadingFromRemote = false;
+  }
+
+  function initFirestoreSync(uid) {
+    gridUid = uid;
+    setSyncStatus('GRID — chargement…');
+
+    window.gridFirestore.loadState(uid).then(function (remoteData) {
+      if (remoteData) {
+        applyRemoteState(remoteData);
+      } else {
+        // Premier lancement pour ce compte : on part des données de démo déjà en mémoire
+        // et on les enregistre immédiatement comme point de départ.
+      }
+      hasLoadedOnce = true;
+      setSyncStatus('GRID — synchronisé');
+      renderEverything();
+      scheduleSave();
+    }).catch(function (err) {
+      setSyncStatus('GRID — erreur de connexion');
+      console.error('Erreur chargement Firestore', err);
+      hasLoadedOnce = true;
+      renderEverything();
+    });
+  }
+
+  function renderEverything() {
+    if (currentMainTab === 'timeunit') { render(); }
+    else if (currentMainTab === 'projects') {
+      if (currentView === 'project' && currentProjectId) renderProjectView();
+      else render();
+    }
+    else if (currentMainTab === 'invoicing') { renderInvoicingView(); }
+    else if (currentMainTab === 'clients') { renderClientsView(); }
+    else if (currentMainTab === 'dashboard') { renderDashboardView(); }
+  }
+
+  window.addEventListener('grid-user-ready', function (e) {
+    initFirestoreSync(e.detail.uid);
+  });
+
+  function formatHoursLcd(totalSeconds) {
+    var h = totalSeconds / 3600;
+    return h.toFixed(2).padStart(5, '0') + 'h';
+  }
+
+  function formatHoursShort(totalSeconds) {
+    var h = totalSeconds / 3600;
+    var str = h.toFixed(2);
+    str = str.replace(/\.00$/, '');
+    return str + 'h';
+  }
+
+  function formatDuration(seconds) {
+    seconds = Math.max(0, Math.round(seconds));
+    var h = Math.floor(seconds / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = seconds % 60;
+    var parts = [];
+    if (h > 0) parts.push(h + 'h');
+    parts.push(String(m).padStart(2, '0') + 'm');
+    if (h === 0) parts.push(String(s).padStart(2, '0') + 's');
+    return parts.join(' ');
+  }
+
+  function formatMoney(amount) {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount || 0);
+  }
+
+  function formatDateTime(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' · ' +
+           d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function dayKey(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+  }
+
+  function formatTimeInput(iso) {
+    var d = new Date(iso);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function entryEndDate(entry) {
+    return new Date(new Date(entry.startedAt).getTime() + entry.seconds * 1000);
+  }
+
+  function combineDateAndTime(baseIso, timeStr) {
+    var parts = timeStr.split(':');
+    if (parts.length !== 2) return null;
+    var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    var d = new Date(baseIso);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
+  function formatDayLabel(iso) {
+    var d = new Date(iso);
+    var today = new Date();
+    var yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (dayKey(iso) === dayKey(today.toISOString())) return "Aujourd'hui";
+    if (dayKey(iso) === dayKey(yesterday.toISOString())) return 'Hier';
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+  }
+
+  function projectSeconds(projectId) {
+    var total = 0;
+    state.entries.forEach(function (e) {
+      if (e.projectId === projectId) total += e.seconds;
+    });
+    if (state.activeTimer && state.activeTimer.projectId === projectId) {
+      total += (Date.now() - state.activeTimer.startedAt) / 1000;
+    }
+    return total;
+  }
+
+  function effectiveRate(project, subtaskId) {
+    if (subtaskId && project.subtasks) {
+      var s = project.subtasks.find(function (st) { return st.id === subtaskId; });
+      if (s && s.rate !== null && s.rate !== undefined && s.rate !== '') {
+        return s.rate;
+      }
+    }
+    return project.rate || 0;
+  }
+
+  function projectAmount(projectId) {
+    var p = state.projects.find(function (pr) { return pr.id === projectId; });
+    if (!p) return 0;
+    var amount = 0;
+    state.entries.forEach(function (e) {
+      if (e.projectId === projectId) {
+        amount += (e.seconds / 3600) * effectiveRate(p, e.subtaskId);
+      }
+    });
+    if (state.activeTimer && state.activeTimer.projectId === projectId) {
+      var elapsedSec = (Date.now() - state.activeTimer.startedAt) / 1000;
+      amount += (elapsedSec / 3600) * effectiveRate(p, state.activeTimer.subtaskId);
+    }
+    return amount;
+  }
+
+  function allTotals() {
+    var totalSeconds = 0, totalAmount = 0;
+    state.projects.forEach(function (p) {
+      totalSeconds += projectSeconds(p.id);
+      totalAmount += projectAmount(p.id);
+    });
+    return { totalSeconds: totalSeconds, totalAmount: totalAmount };
+  }
+
+  function startTimer(projectId, subtaskId) {
+    state.activeTimer = { projectId: projectId, subtaskId: subtaskId || null, startedAt: Date.now() };
+    render();
+  }
+
+  function stopTimer() {
+    if (!state.activeTimer) return;
+    var elapsed = (Date.now() - state.activeTimer.startedAt) / 1000;
+    if (elapsed >= 1) {
+      state.entries.push({
+        id: genId(),
+        projectId: state.activeTimer.projectId,
+        subtaskId: state.activeTimer.subtaskId || null,
+        seconds: Math.round(elapsed),
+        startedAt: new Date(state.activeTimer.startedAt).toISOString()
+      });
+    }
+    state.activeTimer = null;
+    render();
+  }
+
+  function deleteProject(projectId) {
+    if (state.activeTimer && state.activeTimer.projectId === projectId) {
+      state.activeTimer = null;
+    }
+    state.projects = state.projects.filter(function (p) { return p.id !== projectId; });
+    state.entries = state.entries.filter(function (e) { return e.projectId !== projectId; });
+    render();
+  }
+
+  function deleteEntry(entryId) {
+    state.entries = state.entries.filter(function (e) { return e.id !== entryId; });
+    render();
+  }
+
+  function updateEntrySeconds(entryId, newSeconds) {
+    var entry = state.entries.find(function (e) { return e.id === entryId; });
+    if (entry) {
+      entry.seconds = Math.max(0, Math.round(newSeconds));
+      render();
+    }
+  }
+
+  function updateEntryRange(entryId, startDate, endDate) {
+    var entry = state.entries.find(function (e) { return e.id === entryId; });
+    if (!entry) return false;
+    var diff = (endDate.getTime() - startDate.getTime()) / 1000;
+    if (diff <= 0) return false;
+    entry.startedAt = startDate.toISOString();
+    entry.seconds = Math.round(diff);
+    render();
+    return true;
+  }
+
+  function parseDuration(str) {
+    str = str.trim().toLowerCase();
+    var h = 0, m = 0, s = 0;
+    var hMatch = str.match(/(\d+(?:\.\d+)?)\s*h/);
+    var mMatch = str.match(/(\d+(?:\.\d+)?)\s*m/);
+    var sMatch = str.match(/(\d+(?:\.\d+)?)\s*s/);
+    if (hMatch) h = parseFloat(hMatch[1]);
+    if (mMatch) m = parseFloat(mMatch[1]);
+    if (sMatch) s = parseFloat(sMatch[1]);
+    if (!hMatch && !mMatch && !sMatch) {
+      var plain = parseFloat(str);
+      if (!isNaN(plain)) return plain * 60;
+      return null;
+    }
+    return h * 3600 + m * 60 + s;
+  }
+
+  function projectName(projectId) {
+    var p = state.projects.find(function (p) { return p.id === projectId; });
+    return p ? p.name : 'Projet supprimé';
+  }
+
+  function subtaskName(projectId, subtaskId) {
+    if (!subtaskId) return null;
+    var p = state.projects.find(function (p) { return p.id === projectId; });
+    if (!p || !p.subtasks) return null;
+    var s = p.subtasks.find(function (s) { return s.id === subtaskId; });
+    return s ? s.name : null;
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function svgTrash() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+  }
+  function svgEdit() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>';
+  }
+  function svgClose() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  }
+  function svgArchive() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>';
+  }
+  function svgUnarchive() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="12" y1="17" x2="12" y2="10"></line><polyline points="9 13 12 10 15 13"></polyline></svg>';
+  }
+
+  function render() {
+    var list = document.getElementById('modules-list');
+    var empty = document.getElementById('empty-state');
+    list.innerHTML = '';
+
+    var activeProjects = state.projects.filter(function (p) { return !p.archived; });
+
+    if (activeProjects.length === 0) {
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      activeProjects.forEach(function (p, idx) {
+        var sec = projectSeconds(p.id);
+        var amount = projectAmount(p.id);
+        var isActive = state.activeTimer && state.activeTimer.projectId === p.id;
+
+        var module = document.createElement('div');
+        module.className = 'module' + (isActive ? ' active' : '');
+        module.style.cursor = 'pointer';
+
+        var indexLabel = 'CH.' + String(idx + 1).padStart(2, '0');
+        var indexStyle = (p.color && !isActive)
+          ? ' style="background:' + p.color + '; color:' + contrastTextColor(p.color) + ';"'
+          : '';
+
+        module.innerHTML =
+          '<div class="module-index"' + indexStyle + '>' + indexLabel + '</div>' +
+          '<div class="module-info">' +
+            '<p class="module-name">' +
+              '<span>' + escapeHtml(p.name) + '</span>' +
+              (p.client ? '<span class="module-client">' + escapeHtml(p.client) + '</span>' : '') +
+            '</p>' +
+            '<p class="module-rate">Taux <b>' + (p.rate || 0) + ' €/h</b></p>' +
+          '</div>' +
+          '<div class="module-display">' +
+            '<div class="lcd">' + formatHoursShort(sec) + '</div>' +
+            '<p class="module-amount' + (isActive ? ' signal' : '') + '">' + formatMoney(amount) + '</p>' +
+          '</div>' +
+          '<div class="module-actions"></div>';
+
+        module.onclick = function () { openProjectView(p.id); };
+
+        var actions = module.querySelector('.module-actions');
+
+        var archiveBtn = document.createElement('button');
+        archiveBtn.className = 'icon-btn';
+        archiveBtn.setAttribute('aria-label', 'Archiver le projet');
+        archiveBtn.innerHTML = svgArchive();
+        archiveBtn.onclick = function (e) {
+          e.stopPropagation();
+          p.archived = true;
+          render();
+        };
+
+        var delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn';
+        delBtn.setAttribute('aria-label', 'Supprimer le projet');
+        delBtn.innerHTML = svgTrash();
+        delBtn.onclick = function (e) {
+          e.stopPropagation();
+          if (confirm('Supprimer ce projet et toutes ses sessions ?')) deleteProject(p.id);
+        };
+
+        actions.appendChild(archiveBtn);
+        actions.appendChild(delBtn);
+        list.appendChild(module);
+      });
+    }
+
+    renderArchivedSection();
+    renderHistory();
+    renderLaunchBar();
+    scheduleSave();
+  }
+
+  var archivedSectionOpen = false;
+
+  function renderArchivedSection() {
+    var section = document.getElementById('archived-section');
+    var toggle = document.getElementById('archived-toggle');
+    var label = document.getElementById('archived-toggle-label');
+    var list = document.getElementById('archived-modules-list');
+
+    var archived = state.projects.filter(function (p) { return p.archived; });
+
+    if (archived.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    label.textContent = 'Projets archivés (' + archived.length + ')';
+    toggle.classList.toggle('open', archivedSectionOpen);
+    list.style.display = archivedSectionOpen ? 'flex' : 'none';
+    list.innerHTML = '';
+
+    archived.forEach(function (p, idx) {
+      var sec = projectSeconds(p.id);
+      var amount = projectAmount(p.id);
+
+      var module = document.createElement('div');
+      module.className = 'module is-archived';
+      module.style.cursor = 'pointer';
+
+      var archIndexStyle = p.color ? ' style="background:' + p.color + '; color:' + contrastTextColor(p.color) + ';"' : '';
+
+      module.innerHTML =
+        '<div class="module-index"' + archIndexStyle + '>' + 'AR.' + String(idx + 1).padStart(2, '0') + '</div>' +
+        '<div class="module-info">' +
+          '<p class="module-name">' +
+            '<span>' + escapeHtml(p.name) + '</span>' +
+            (p.client ? '<span class="module-client">' + escapeHtml(p.client) + '</span>' : '') +
+          '</p>' +
+          '<p class="module-rate">Taux <b>' + (p.rate || 0) + ' €/h</b></p>' +
+        '</div>' +
+        '<div class="module-display">' +
+          '<div class="lcd">' + formatHoursShort(sec) + '</div>' +
+          '<p class="module-amount">' + formatMoney(amount) + '</p>' +
+        '</div>' +
+        '<div class="module-actions"></div>';
+
+      module.onclick = function () { openProjectView(p.id); };
+
+      var actions = module.querySelector('.module-actions');
+
+      var unarchiveBtn = document.createElement('button');
+      unarchiveBtn.className = 'icon-btn';
+      unarchiveBtn.setAttribute('aria-label', 'Désarchiver le projet');
+      unarchiveBtn.innerHTML = svgUnarchive();
+      unarchiveBtn.onclick = function (e) {
+        e.stopPropagation();
+        p.archived = false;
+        render();
+      };
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.setAttribute('aria-label', 'Supprimer le projet');
+      delBtn.innerHTML = svgTrash();
+      delBtn.onclick = function (e) {
+        e.stopPropagation();
+        if (confirm('Supprimer ce projet et toutes ses sessions ?')) deleteProject(p.id);
+      };
+
+      actions.appendChild(unarchiveBtn);
+      actions.appendChild(delBtn);
+      list.appendChild(module);
+    });
+  }
+
+  function renderLaunchBar() {
+    var select = document.getElementById('launch-select');
+    var selectWrap = document.getElementById('launch-select-wrap');
+    var subWrap = document.getElementById('launch-subtask-wrap');
+    var subSelect = document.getElementById('launch-subtask-select');
+    var live = document.getElementById('launch-live');
+    var liveName = document.getElementById('launch-live-name');
+    var liveSub = document.getElementById('launch-live-sub');
+    var liveLcd = document.getElementById('launch-live-lcd');
+    var toggle = document.getElementById('launch-toggle');
+    var bar = document.getElementById('launch-bar');
+
+    // rebuild project options only if not actively typing/open — safe since it's a native select
+    var currentValue = select.value;
+    var launchableProjects = state.projects.filter(function (p) { return !p.archived; });
+    select.innerHTML = '<option value="">Choisir un projet…</option>' +
+      launchableProjects.map(function (p) {
+        return '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>';
+      }).join('');
+    if (launchableProjects.some(function (p) { return p.id === currentValue; })) {
+      select.value = currentValue;
+    }
+
+    if (state.activeTimer) {
+      var p = state.projects.find(function (pr) { return pr.id === state.activeTimer.projectId; });
+      bar.classList.add('running');
+      selectWrap.classList.add('hide');
+      subWrap.style.display = 'none';
+      live.classList.add('show');
+      liveName.textContent = p ? p.name : 'Projet supprimé';
+      var sub = subtaskName(state.activeTimer.projectId, state.activeTimer.subtaskId);
+      liveSub.textContent = sub || '';
+      liveSub.style.display = sub ? 'inline' : 'none';
+      var elapsed = (Date.now() - state.activeTimer.startedAt) / 1000;
+      liveLcd.textContent = formatClock(elapsed);
+      toggle.disabled = false;
+      toggle.textContent = 'STOP';
+      toggle.classList.add('is-running');
+    } else {
+      bar.classList.remove('running');
+      selectWrap.classList.remove('hide');
+      live.classList.remove('show');
+      toggle.classList.remove('is-running');
+      toggle.textContent = 'START';
+      toggle.disabled = !select.value;
+      updateSubtaskSelect();
+    }
+  }
+
+  function updateSubtaskSelect() {
+    var select = document.getElementById('launch-select');
+    var subWrap = document.getElementById('launch-subtask-wrap');
+    var subSelect = document.getElementById('launch-subtask-select');
+    var p = state.projects.find(function (pr) { return pr.id === select.value; });
+
+    if (p && p.subtasks && p.subtasks.length > 0) {
+      var currentSub = subSelect.value;
+      subSelect.innerHTML = '<option value="">Sans sous-tâche</option>' +
+        p.subtasks.map(function (s) {
+          return '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>';
+        }).join('');
+      if (p.subtasks.some(function (s) { return s.id === currentSub; })) {
+        subSelect.value = currentSub;
+      } else {
+        subSelect.value = '';
+      }
+      subWrap.style.display = 'flex';
+    } else {
+      subWrap.style.display = 'none';
+      subSelect.value = '';
+    }
+  }
+
+  function formatClock(totalSeconds) {
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function renderHistory() {
+    var historyList = document.getElementById('history-list');
+    var historyEmpty = document.getElementById('history-empty');
+    historyList.innerHTML = '';
+
+    var sorted = state.entries.slice().sort(function (a, b) {
+      return new Date(b.startedAt) - new Date(a.startedAt);
+    });
+
+    if (sorted.length === 0) {
+      historyEmpty.style.display = 'block';
+      return;
+    }
+    historyEmpty.style.display = 'none';
+
+    var visible = sorted.slice(0, HISTORY_LIMIT);
+    var currentDay = null;
+
+    visible.forEach(function (entry) {
+      var key = dayKey(entry.startedAt);
+      if (key !== currentDay) {
+        currentDay = key;
+        var dayTotal = sorted
+          .filter(function (e) { return dayKey(e.startedAt) === key; })
+          .reduce(function (sum, e) { return sum + e.seconds; }, 0);
+
+        var divider = document.createElement('div');
+        divider.className = 'day-divider';
+        divider.innerHTML =
+          '<span class="day-label">' + formatDayLabel(entry.startedAt) + '</span>' +
+          '<span class="day-line"></span>' +
+          '<span class="day-total">' + formatDuration(dayTotal) + '</span>';
+        historyList.appendChild(divider);
+      }
+
+      var row = document.createElement('div');
+      row.className = 'history-row';
+
+      var sub = subtaskName(entry.projectId, entry.subtaskId);
+      var main = document.createElement('div');
+      main.className = 'history-row-main';
+      main.innerHTML =
+        '<span class="history-project">' + escapeHtml(projectName(entry.projectId)) +
+          (sub ? '<span class="history-subtask">' + escapeHtml(sub) + '</span>' : '') +
+        '</span>';
+
+      var endDate = entryEndDate(entry);
+      var rangeCol = document.createElement('div');
+      rangeCol.className = 'history-range-col';
+      rangeCol.innerHTML =
+        '<div class="history-range">' +
+          '<span class="history-range-lcd">' + formatTimeInput(entry.startedAt) + '</span>' +
+          '<span class="history-range-arrow">→</span>' +
+          '<span class="history-range-lcd">' + formatTimeInput(endDate.toISOString()) + '</span>' +
+        '</div>' +
+        '<span class="history-duration-small">' + formatDuration(entry.seconds) + '</span>';
+
+      var editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label', 'Modifier cette session');
+      editBtn.innerHTML = svgEdit();
+      editBtn.onclick = function () {
+        openEditId = (openEditId === entry.id) ? null : entry.id;
+        editMode = 'duration';
+        renderHistory();
+      };
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.setAttribute('aria-label', 'Supprimer cette session');
+      delBtn.innerHTML = svgClose();
+      delBtn.onclick = function () { deleteEntry(entry.id); };
+
+      row.appendChild(main);
+      row.appendChild(rangeCol);
+      row.appendChild(editBtn);
+      row.appendChild(delBtn);
+      historyList.appendChild(row);
+
+      if (openEditId === entry.id) {
+        historyList.appendChild(buildEditPanel(entry));
+      }
+    });
+
+    if (sorted.length > HISTORY_LIMIT) {
+      var more = document.createElement('div');
+      more.style.cssText = 'text-align:center; padding:10px 0 0; font-size:12px; color:var(--grey);';
+      more.textContent = '+ ' + (sorted.length - HISTORY_LIMIT) + ' session(s) plus ancienne(s)';
+      historyList.appendChild(more);
+    }
+  }
+
+  function buildEditPanel(entry, refreshFn) {
+    refreshFn = refreshFn || renderHistory;
+    var panel = document.createElement('div');
+    panel.className = 'edit-panel';
+
+    var tabs = document.createElement('div');
+    tabs.className = 'edit-panel-tabs';
+
+    var tabDuration = document.createElement('button');
+    tabDuration.className = 'edit-tab' + (editMode === 'duration' ? ' active' : '');
+    tabDuration.textContent = 'Durée';
+    tabDuration.onclick = function () { editMode = 'duration'; refreshFn(); };
+
+    var tabRange = document.createElement('button');
+    tabRange.className = 'edit-tab' + (editMode === 'range' ? ' active' : '');
+    tabRange.textContent = 'Début / fin';
+    tabRange.onclick = function () { editMode = 'range'; refreshFn(); };
+
+    tabs.appendChild(tabDuration);
+    tabs.appendChild(tabRange);
+    panel.appendChild(tabs);
+
+    var fields = document.createElement('div');
+    fields.className = 'edit-panel-fields';
+
+    if (editMode === 'duration') {
+      var fDur = document.createElement('div');
+      fDur.className = 'edit-field';
+      fDur.innerHTML = '<label for="ed-dur-' + entry.id + '">Durée</label>';
+      var inputDur = document.createElement('input');
+      inputDur.type = 'text';
+      inputDur.id = 'ed-dur-' + entry.id;
+      inputDur.value = formatDuration(entry.seconds);
+      inputDur.placeholder = '1h 30m';
+      fDur.appendChild(inputDur);
+      fields.appendChild(fDur);
+
+      var actions1 = document.createElement('div');
+      actions1.className = 'edit-panel-actions';
+      var saveBtn1 = document.createElement('button');
+      saveBtn1.className = 'btn btn-primary';
+      saveBtn1.textContent = 'Enregistrer';
+      saveBtn1.onclick = function () {
+        var parsed = parseDuration(inputDur.value);
+        if (parsed !== null) {
+          updateEntrySeconds(entry.id, parsed);
+          openEditId = null;
+          refreshFn();
+        } else {
+          inputDur.style.borderColor = 'var(--signal)';
+        }
+      };
+      var cancelBtn1 = document.createElement('button');
+      cancelBtn1.className = 'btn';
+      cancelBtn1.textContent = 'Fermer';
+      cancelBtn1.onclick = function () { openEditId = null; refreshFn(); };
+      actions1.appendChild(cancelBtn1);
+      actions1.appendChild(saveBtn1);
+      fields.appendChild(actions1);
+    } else {
+      var endDate = entryEndDate(entry);
+
+      var fStart = document.createElement('div');
+      fStart.className = 'edit-field';
+      fStart.innerHTML = '<label for="ed-start-' + entry.id + '">Début</label>';
+      var inputStart = document.createElement('input');
+      inputStart.type = 'time';
+      inputStart.id = 'ed-start-' + entry.id;
+      inputStart.value = formatTimeInput(entry.startedAt);
+      fStart.appendChild(inputStart);
+
+      var fEnd = document.createElement('div');
+      fEnd.className = 'edit-field';
+      fEnd.innerHTML = '<label for="ed-end-' + entry.id + '">Fin</label>';
+      var inputEnd = document.createElement('input');
+      inputEnd.type = 'time';
+      inputEnd.id = 'ed-end-' + entry.id;
+      inputEnd.value = formatTimeInput(endDate.toISOString());
+      fEnd.appendChild(inputEnd);
+
+      fields.appendChild(fStart);
+      fields.appendChild(fEnd);
+
+      var actions2 = document.createElement('div');
+      actions2.className = 'edit-panel-actions';
+      var saveBtn2 = document.createElement('button');
+      saveBtn2.className = 'btn btn-primary';
+      saveBtn2.textContent = 'Enregistrer';
+      saveBtn2.onclick = function () {
+        var newStart = combineDateAndTime(entry.startedAt, inputStart.value);
+        var newEnd = combineDateAndTime(entry.startedAt, inputEnd.value);
+        if (!newStart || !newEnd) return;
+        if (newEnd <= newStart) newEnd = new Date(newEnd.getTime() + 24 * 3600 * 1000);
+        var ok = updateEntryRange(entry.id, newStart, newEnd);
+        if (ok) {
+          openEditId = null;
+          refreshFn();
+        } else {
+          inputEnd.style.borderColor = 'var(--signal)';
+        }
+      };
+      var cancelBtn2 = document.createElement('button');
+      cancelBtn2.className = 'btn';
+      cancelBtn2.textContent = 'Fermer';
+      cancelBtn2.onclick = function () { openEditId = null; refreshFn(); };
+      actions2.appendChild(cancelBtn2);
+      actions2.appendChild(saveBtn2);
+      fields.appendChild(actions2);
+    }
+
+    panel.appendChild(fields);
+
+    var note = document.createElement('p');
+    note.className = 'edit-result';
+    note.innerHTML = editMode === 'duration'
+      ? 'Format libre : <b>1h 30m</b>, <b>45m</b>, ou un nombre de minutes.'
+      : 'La fin peut dépasser minuit, elle sera reportée au lendemain.';
+    panel.appendChild(note);
+
+    return panel;
+  }
+
+  // ===== PROJECT VIEW =====
+
+  var currentMainTab = 'timeunit'; // 'timeunit' | 'invoicing' | 'clients'
+
+  var projectViewOrigin = 'timeunit';
+
+  function switchMainTab(tab) {
+    currentMainTab = tab;
+    document.querySelectorAll('.main-tab').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+    });
+
+    document.getElementById('home-view').style.display = 'none';
+    document.getElementById('projects-view').style.display = 'none';
+    document.getElementById('project-view').style.display = 'none';
+    document.getElementById('invoicing-view').style.display = 'none';
+    document.getElementById('clients-view').style.display = 'none';
+    document.getElementById('dashboard-view').style.display = 'none';
+
+    if (tab === 'timeunit') {
+      currentView = 'home';
+      document.getElementById('home-view').style.display = 'block';
+      render();
+    } else if (tab === 'projects') {
+      if (currentView === 'project' && currentProjectId) {
+        document.getElementById('project-view').style.display = 'block';
+        renderProjectView();
+      } else {
+        currentView = 'home';
+        document.getElementById('projects-view').style.display = 'block';
+        render();
+      }
+    } else if (tab === 'invoicing') {
+      document.getElementById('invoicing-view').style.display = 'block';
+      renderInvoicingView();
+    } else if (tab === 'clients') {
+      document.getElementById('clients-view').style.display = 'block';
+      renderClientsView();
+    } else if (tab === 'dashboard') {
+      document.getElementById('dashboard-view').style.display = 'block';
+      renderDashboardView();
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function openProjectView(projectId) {
+    currentView = 'project';
+    currentProjectId = projectId;
+    chartOffset = 0;
+    projectViewOrigin = currentMainTab === 'timeunit' ? 'timeunit' : 'projects';
+    document.getElementById('pv-threshold').value = projectThresholds[projectId] || 0;
+    switchMainTab('projects');
+  }
+
+  function closeProjectView() {
+    currentView = 'home';
+    currentProjectId = null;
+    switchMainTab(projectViewOrigin);
+  }
+
+  // ===== INVOICING VIEW =====
+
+  function openInvoicingView() {
+    switchMainTab('invoicing');
+  }
+
+  function closeInvoicingView() {
+    switchMainTab('timeunit');
+  }
+
+  function trackedSecondsInRange(projectId, fromIso, toIso) {
+    var from = fromIso ? new Date(fromIso) : null;
+    var to = toIso ? new Date(toIso) : null;
+    var total = 0;
+    state.entries.forEach(function (e) {
+      if (e.projectId !== projectId) return;
+      var t = new Date(e.startedAt);
+      if (from && t < from) return;
+      if (to && t > to) return;
+      total += e.seconds;
+    });
+    return total;
+  }
+
+  function invoiceTtc(inv) {
+    return inv.amount * (1 + (inv.vat || 0) / 100);
+  }
+
+  var invoiceYearFilter = new Date().getFullYear();
+
+  function getInvoiceYears() {
+    var years = state.invoices.map(function (inv) { return new Date(inv.date).getFullYear(); });
+    var currentYear = new Date().getFullYear();
+    years.push(currentYear);
+    years = years.filter(function (y) { return !isNaN(y); });
+    var uniqueYears = Array.from(new Set(years));
+    uniqueYears.sort(function (a, b) { return b - a; });
+    return uniqueYears;
+  }
+
+  function invoicesForYear(year) {
+    return state.invoices.filter(function (inv) {
+      return new Date(inv.date).getFullYear() === year;
+    });
+  }
+
+  function renderInvoicingView() {
+    var years = getInvoiceYears();
+    if (years.indexOf(invoiceYearFilter) === -1) {
+      invoiceYearFilter = years[0];
+    }
+
+    var yearSelect = document.getElementById('inv-year-select');
+    yearSelect.innerHTML = years.map(function (y) {
+      return '<option value="' + y + '">' + y + '</option>';
+    }).join('');
+    yearSelect.value = invoiceYearFilter;
+
+    var currentYear = new Date().getFullYear();
+    document.getElementById('inv-year-label-ht').textContent =
+      (invoiceYearFilter === currentYear ? 'Facturé cette année (HT)' : 'Facturé en ' + invoiceYearFilter + ' (HT)');
+
+    var yearInvoices = invoicesForYear(invoiceYearFilter);
+    var totalYearHt = 0, totalYearTtc = 0, totalPending = 0, totalProjection = 0;
+
+    yearInvoices.forEach(function (inv) {
+      var ttc = invoiceTtc(inv);
+      totalYearHt += inv.amount;
+      totalYearTtc += ttc;
+      if (inv.status !== 'paid') totalPending += ttc;
+    });
+
+    state.projections.forEach(function (proj) {
+      totalProjection += proj.amount;
+    });
+
+    document.getElementById('inv-total-year-ht').textContent = formatMoney(totalYearHt);
+    document.getElementById('inv-total-year-ttc').textContent = formatMoney(totalYearTtc) + ' TTC';
+    document.getElementById('inv-total-pending').textContent = formatMoney(totalPending);
+    document.getElementById('inv-count').textContent = yearInvoices.length;
+    document.getElementById('inv-total-projection').textContent = formatMoney(totalProjection);
+
+    var projectOptions = state.projects.map(function (p) {
+      return '<option value="' + p.id + '">' + escapeHtml(p.name) + (p.client ? ' — ' + escapeHtml(p.client) : '') + '</option>';
+    }).join('');
+    document.getElementById('inv-new-project').innerHTML = projectOptions;
+    document.getElementById('proj-new-project').innerHTML = projectOptions;
+
+    renderInvoiceTable();
+    renderProjectionTable();
+    scheduleSave();
+  }
+
+  function sortedInvoices() {
+    var list = invoicesForYear(invoiceYearFilter);
+    list.sort(function (a, b) {
+      var av, bv;
+      switch (invoiceSortKey) {
+        case 'number':
+          av = a.number || ''; bv = b.number || '';
+          return invoiceSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        case 'client':
+          av = (getProject(a.projectId) || {}).client || '';
+          bv = (getProject(b.projectId) || {}).client || '';
+          return invoiceSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        case 'project':
+          av = (getProject(a.projectId) || {}).name || '';
+          bv = (getProject(b.projectId) || {}).name || '';
+          return invoiceSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+        case 'ttc':
+          return invoiceSortDir === 'asc' ? invoiceTtc(a) - invoiceTtc(b) : invoiceTtc(b) - invoiceTtc(a);
+        case 'date':
+        default:
+          av = new Date(a.date).getTime(); bv = new Date(b.date).getTime();
+          return invoiceSortDir === 'asc' ? av - bv : bv - av;
+      }
+    });
+    return list;
+  }
+
+  function renderInvoiceTable() {
+    var body = document.getElementById('invoice-table-body');
+    var empty = document.getElementById('invoice-empty');
+    body.innerHTML = '';
+
+    document.querySelectorAll('.invoice-sort-btn').forEach(function (btn) {
+      var key = btn.getAttribute('data-sort');
+      btn.classList.toggle('sort-active', key === invoiceSortKey);
+      var arrow = key === invoiceSortKey ? (invoiceSortDir === 'asc' ? ' ▲' : ' ▼') : '';
+      btn.innerHTML = btn.textContent.replace(/ [▲▼]$/, '') + '<span class="sort-arrow">' + arrow + '</span>';
+    });
+
+    var list = sortedInvoices();
+
+    if (list.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.forEach(function (inv) {
+      var p = getProject(inv.projectId);
+      var ttc = invoiceTtc(inv);
+      var row = document.createElement('div');
+      row.className = 'invoice-row';
+
+      row.innerHTML =
+        '<span class="invoice-number mono">' + escapeHtml(inv.number || '—') + '</span>' +
+        '<span class="invoice-client">' + escapeHtml(p && p.client ? p.client : '—') + '</span>' +
+        '<span class="invoice-project-name">' + escapeHtml(p ? p.name : 'Projet supprimé') + '</span>' +
+        '<span class="invoice-date mono">' + new Date(inv.date).toLocaleDateString('fr-FR') + '</span>' +
+        '<span class="invoice-vat mono">' + (inv.vat || 0) + '%</span>' +
+        '<span class="invoice-amount-ht mono">' + formatMoney(inv.amount) + '</span>' +
+        '<span class="invoice-amount-ttc">' + formatMoney(ttc) + '</span>' +
+        '<span></span>' +
+        '<span class="invoice-row-actions"></span>';
+
+      var statusSlot = row.children[7];
+      var statusBtn = document.createElement('button');
+      statusBtn.className = 'invoice-status-btn status-' + inv.status;
+      statusBtn.textContent = inv.status === 'paid' ? 'Payée' : 'Envoyée';
+      statusBtn.title = 'Cliquer pour changer le statut';
+      statusBtn.onclick = function () {
+        inv.status = inv.status === 'paid' ? 'sent' : 'paid';
+        renderInvoicingView();
+      };
+      statusSlot.appendChild(statusBtn);
+
+      var actionsSlot = row.children[8];
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.setAttribute('aria-label', 'Supprimer la facture');
+      delBtn.innerHTML = svgClose();
+      delBtn.onclick = function () {
+        if (confirm('Supprimer cette facture ?')) {
+          state.invoices = state.invoices.filter(function (i) { return i.id !== inv.id; });
+          renderInvoicingView();
+        }
+      };
+      actionsSlot.appendChild(delBtn);
+
+      body.appendChild(row);
+    });
+  }
+
+  function renderProjectionTable() {
+    var body = document.getElementById('projection-table-body');
+    var empty = document.getElementById('projection-empty');
+    body.innerHTML = '';
+
+    if (state.projections.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    state.projections.forEach(function (proj) {
+      var p = getProject(proj.projectId);
+      var row = document.createElement('div');
+      row.className = 'projection-row';
+
+      row.innerHTML =
+        '<span class="invoice-project-name" style="color:var(--ink); font-weight:600;">' + escapeHtml(p ? p.name : 'Projet supprimé') + '</span>' +
+        '<span class="invoice-client">' + escapeHtml(p && p.client ? p.client : '—') + '</span>' +
+        '<span class="projection-amount mono">' + formatMoney(proj.amount) + '</span>' +
+        '<span class="invoice-row-actions"></span>';
+
+      var actionsSlot = row.children[3];
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.setAttribute('aria-label', 'Supprimer la ligne de projection');
+      delBtn.innerHTML = svgClose();
+      delBtn.onclick = function () {
+        state.projections = state.projections.filter(function (pr) { return pr.id !== proj.id; });
+        renderInvoicingView();
+      };
+      actionsSlot.appendChild(delBtn);
+
+      body.appendChild(row);
+    });
+  }
+
+  // ===== CLIENTS VIEW =====
+
+  var openClientId = null;
+
+  function getClient(clientId) {
+    return state.clients.find(function (c) { return c.id === clientId; });
+  }
+
+  function projectsForClient(clientId) {
+    return state.projects.filter(function (p) { return p.clientId === clientId; });
+  }
+
+  function syncProjectClientLabel(clientId) {
+    var client = getClient(clientId);
+    if (!client) return;
+    state.projects.forEach(function (p) {
+      if (p.clientId === clientId) p.client = client.name;
+    });
+  }
+
+  function renderClientsView() {
+    var list = document.getElementById('clients-list');
+    var empty = document.getElementById('clients-empty');
+    list.innerHTML = '';
+
+    if (state.clients.length === 0) {
+      empty.style.display = 'block';
+      scheduleSave();
+      return;
+    }
+    empty.style.display = 'none';
+
+    state.clients.forEach(function (c) {
+      var isOpen = openClientId === c.id;
+      var linkedProjects = projectsForClient(c.id);
+      var linkedProjectIds = linkedProjects.map(function (p) { return p.id; });
+      var clientInvoices = state.invoices.filter(function (inv) { return linkedProjectIds.indexOf(inv.projectId) !== -1; });
+      var currentYear = new Date().getFullYear();
+      var billedThisYear = clientInvoices
+        .filter(function (inv) { return new Date(inv.date).getFullYear() === currentYear; })
+        .reduce(function (sum, inv) { return sum + inv.amount; }, 0);
+      var billedTotal = clientInvoices.reduce(function (sum, inv) { return sum + inv.amount; }, 0);
+      var initials = c.name.trim().slice(0, 2).toUpperCase();
+
+      var card = document.createElement('div');
+      card.className = 'client-card' + (isOpen ? ' open' : '');
+
+      var head = document.createElement('div');
+      head.className = 'client-card-head';
+      head.innerHTML =
+        '<div class="client-card-icon">' + escapeHtml(initials) + '</div>' +
+        '<div class="client-card-main">' +
+          '<p class="client-card-name">' + escapeHtml(c.name) + '</p>' +
+          '<p class="client-card-sub">' + escapeHtml(c.contact || c.email || 'Aucun contact renseigné') + '</p>' +
+        '</div>' +
+        '<div class="client-card-stats">' +
+          '<div class="client-card-stat">' +
+            '<p class="client-card-stat-label">Facturé ' + currentYear + ' (HT)</p>' +
+            '<p class="client-card-stat-value">' + formatMoney(billedThisYear) + '</p>' +
+          '</div>' +
+          '<div class="client-card-stat">' +
+            '<p class="client-card-stat-label">Total facturé (HT)</p>' +
+            '<p class="client-card-stat-value">' + formatMoney(billedTotal) + '</p>' +
+          '</div>' +
+        '</div>' +
+        '<svg class="client-card-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+      head.onclick = function () {
+        openClientId = isOpen ? null : c.id;
+        renderClientsView();
+      };
+      card.appendChild(head);
+
+      var body = document.createElement('div');
+      body.className = 'client-card-body';
+
+      if (isOpen) {
+        body.innerHTML =
+          '<div class="client-field-grid">' +
+            '<div class="client-field"><label>Nom du client / société</label><input type="text" id="cl-edit-name" value="' + escapeAttr(c.name) + '"></div>' +
+            '<div class="client-field"><label>Contact principal</label><input type="text" id="cl-edit-contact" value="' + escapeAttr(c.contact) + '"></div>' +
+            '<div class="client-field"><label>Email</label><input type="email" id="cl-edit-email" value="' + escapeAttr(c.email) + '"></div>' +
+            '<div class="client-field"><label>Téléphone</label><input type="text" id="cl-edit-phone" class="mono" value="' + escapeAttr(c.phone) + '"></div>' +
+            '<div class="client-field full"><label>Adresse postale</label><input type="text" id="cl-edit-address" value="' + escapeAttr(c.address) + '"></div>' +
+            '<div class="client-field"><label>SIRET</label><input type="text" id="cl-edit-siret" class="mono" value="' + escapeAttr(c.siret) + '"></div>' +
+            '<div class="client-field full"><label>Notes</label><textarea id="cl-edit-notes" rows="2">' + escapeHtml(c.notes || '') + '</textarea></div>' +
+          '</div>';
+
+        var projectsBlock = document.createElement('div');
+        projectsBlock.className = 'client-card-projects';
+        if (linkedProjects.length > 0) {
+          projectsBlock.innerHTML = '<p class="client-card-projects-label">Projets rattachés</p>';
+          linkedProjects.forEach(function (p) {
+            var chip = document.createElement('span');
+            chip.className = 'client-project-chip';
+            chip.textContent = p.name;
+            chip.onclick = function () { openProjectView(p.id); };
+            projectsBlock.appendChild(chip);
+          });
+        } else {
+          projectsBlock.innerHTML = '<p class="client-card-projects-label">Aucun projet rattaché pour l\'instant. Lie ce client à un projet depuis sa page projet.</p>';
+        }
+        body.appendChild(projectsBlock);
+
+        var actions = document.createElement('div');
+        actions.className = 'client-card-actions';
+
+        var delBtn = document.createElement('button');
+        delBtn.className = 'btn';
+        delBtn.style.color = 'var(--grey)';
+        delBtn.textContent = 'Supprimer ce client';
+        delBtn.onclick = function (e) {
+          e.stopPropagation();
+          if (confirm('Supprimer ce client ? Les projets rattachés resteront mais perdront le lien.')) {
+            state.projects.forEach(function (p) {
+              if (p.clientId === c.id) p.clientId = null;
+            });
+            state.clients = state.clients.filter(function (cl) { return cl.id !== c.id; });
+            openClientId = null;
+            renderClientsView();
+          }
+        };
+
+        var saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-primary';
+        saveBtn.textContent = 'Enregistrer';
+        saveBtn.onclick = function (e) {
+          e.stopPropagation();
+          c.name = document.getElementById('cl-edit-name').value.trim() || c.name;
+          c.contact = document.getElementById('cl-edit-contact').value.trim();
+          c.email = document.getElementById('cl-edit-email').value.trim();
+          c.phone = document.getElementById('cl-edit-phone').value.trim();
+          c.address = document.getElementById('cl-edit-address').value.trim();
+          c.siret = document.getElementById('cl-edit-siret').value.trim();
+          c.notes = document.getElementById('cl-edit-notes').value.trim();
+          syncProjectClientLabel(c.id);
+          renderClientsView();
+        };
+
+        actions.appendChild(delBtn);
+        actions.appendChild(saveBtn);
+        body.appendChild(actions);
+      }
+
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+
+    scheduleSave();
+  }
+
+  // ===== DASHBOARD VIEW =====
+
+  function renderDashboardView() {
+    renderDashYearChart();
+    renderDashPeriodSelect();
+    renderDashClientRanking();
+  }
+
+  function renderDashYearChart() {
+    var container = document.getElementById('dash-year-bars');
+    var empty = document.getElementById('dash-year-empty');
+    container.innerHTML = '';
+
+    if (state.invoices.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    var years = getInvoiceYears().slice().sort(function (a, b) { return a - b; });
+    var currentYear = new Date().getFullYear();
+
+    var totalsByYear = years.map(function (y) {
+      return invoicesForYear(y).reduce(function (sum, inv) { return sum + inv.amount; }, 0);
+    });
+    var maxTotal = Math.max.apply(null, totalsByYear.concat([1]));
+
+    years.forEach(function (y, idx) {
+      var total = totalsByYear[idx];
+      var prevTotal = idx > 0 ? totalsByYear[idx - 1] : null;
+      var heightPct = total > 0 ? Math.max((total / maxTotal) * 100, 3) : 0;
+
+      var col = document.createElement('div');
+      col.className = 'dash-year-col' + (y === currentYear ? ' is-current' : '');
+
+      var deltaHtml = '';
+      if (prevTotal !== null) {
+        if (prevTotal === 0 && total > 0) {
+          deltaHtml = '<span class="dash-year-delta up">nouveau</span>';
+        } else if (prevTotal > 0) {
+          var deltaPct = Math.round(((total - prevTotal) / prevTotal) * 100);
+          var sign = deltaPct >= 0 ? '+' : '';
+          deltaHtml = '<span class="dash-year-delta ' + (deltaPct >= 0 ? 'up' : 'down') + '">' + sign + deltaPct + '%</span>';
+        }
+      }
+
+      col.innerHTML =
+        deltaHtml +
+        '<span class="dash-year-value">' + formatMoney(total) + '</span>' +
+        '<div class="dash-year-bar-track"><div class="dash-year-bar-fill" style="height:' + heightPct + '%;"></div></div>' +
+        '<span class="dash-year-label">' + y + '</span>';
+
+      container.appendChild(col);
+    });
+  }
+
+  function renderDashPeriodSelect() {
+    var select = document.getElementById('dash-period-select');
+    var years = getInvoiceYears();
+    var currentValue = select.value || 'all';
+    select.innerHTML = '<option value="all">Toutes années</option>' +
+      years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+    if (currentValue === 'all' || years.indexOf(parseInt(currentValue, 10)) !== -1) {
+      select.value = currentValue;
+    } else {
+      select.value = 'all';
+    }
+  }
+
+  function renderDashClientRanking() {
+    var list = document.getElementById('dash-client-list');
+    var empty = document.getElementById('dash-client-empty');
+    list.innerHTML = '';
+
+    var periodValue = document.getElementById('dash-period-select').value || 'all';
+    var invoices = periodValue === 'all' ? state.invoices.slice() : invoicesForYear(parseInt(periodValue, 10));
+
+    if (invoices.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    var byClient = {}; // clientKey -> { name, total }
+    invoices.forEach(function (inv) {
+      var p = getProject(inv.projectId);
+      var client = p && p.clientId ? getClient(p.clientId) : null;
+      var key = client ? client.id : '__none__';
+      var name = client ? client.name : (p && p.client ? p.client : 'Sans client');
+      if (!byClient[key]) byClient[key] = { name: name, total: 0 };
+      byClient[key].total += inv.amount;
+    });
+
+    var rows = Object.keys(byClient).map(function (key) { return byClient[key]; });
+    rows.sort(function (a, b) { return b.total - a.total; });
+
+    var grandTotal = rows.reduce(function (sum, r) { return sum + r.total; }, 0);
+    var maxTotal = rows.length > 0 ? rows[0].total : 1;
+
+    rows.forEach(function (r, idx) {
+      var pct = grandTotal > 0 ? Math.round((r.total / grandTotal) * 100) : 0;
+      var barPct = maxTotal > 0 ? Math.round((r.total / maxTotal) * 100) : 0;
+
+      var row = document.createElement('div');
+      row.className = 'dash-client-row';
+      row.innerHTML =
+        '<span class="dash-client-rank mono">' + String(idx + 1).padStart(2, '0') + '</span>' +
+        '<div class="dash-client-info">' +
+          '<p class="dash-client-name">' + escapeHtml(r.name) + '</p>' +
+          '<div class="dash-client-bar-wrap"><div class="dash-client-bar-fill" style="width:' + barPct + '%;"></div></div>' +
+        '</div>' +
+        '<span class="dash-client-amount">' + formatMoney(r.total) + '</span>' +
+        '<span class="dash-client-pct">' + pct + '% du total</span>';
+      list.appendChild(row);
+    });
+  }
+
+  function escapeAttr(str) {
+    return escapeHtml(str || '').replace(/"/g, '&quot;');
+  }
+
+  var PROJECT_COLORS = [
+    '#FF4D00', // signal orange
+    '#E0344D', // rouge framboise
+    '#D6A800', // jaune moutarde
+    '#3FA547', // vert sapin
+    '#1E9E8C', // turquoise
+    '#2E7DD1', // bleu franc
+    '#6C5CE0', // violet
+    '#C04CC2', // magenta
+    '#A8763E', // brun terracotta
+    '#5A6470'  // ardoise
+  ];
+
+  function contrastTextColor(hex) {
+    if (!hex) return '#F4F3F0';
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6 ? '#1A1A18' : '#F4F3F0';
+  }
+
+  function darken(hex, amount) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    r = Math.round(r * (1 - amount));
+    g = Math.round(g * (1 - amount));
+    b = Math.round(b * (1 - amount));
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function applyProjectHeaderColor(p) {
+    var header = document.querySelector('#project-view .project-header');
+    if (p.color) {
+      header.style.background = darken(p.color, 0.18);
+      header.style.borderColor = darken(p.color, 0.35);
+      header.style.color = contrastTextColor(p.color);
+    } else {
+      header.style.background = '';
+      header.style.borderColor = '';
+      header.style.color = '';
+    }
+  }
+
+  function renderColorSwatchPanel(p) {
+    var panel = document.getElementById('color-swatch-panel');
+    panel.innerHTML = '';
+
+    var noneBtn = document.createElement('button');
+    noneBtn.className = 'color-swatch none-swatch' + (!p.color ? ' selected' : '');
+    noneBtn.setAttribute('aria-label', 'Aucune couleur');
+    noneBtn.onclick = function () {
+      p.color = null;
+      renderProjectView();
+      render();
+    };
+    panel.appendChild(noneBtn);
+
+    PROJECT_COLORS.forEach(function (color) {
+      var swatch = document.createElement('button');
+      swatch.className = 'color-swatch' + (p.color === color ? ' selected' : '');
+      swatch.style.background = color;
+      swatch.setAttribute('aria-label', 'Couleur ' + color);
+      swatch.onclick = function () {
+        p.color = color;
+        renderProjectView();
+        render();
+      };
+      panel.appendChild(swatch);
+    });
+  }
+
+  function getProject(projectId) {
+    return state.projects.find(function (p) { return p.id === projectId; });
+  }
+
+  function projectEntries(projectId) {
+    return state.entries.filter(function (e) { return e.projectId === projectId; });
+  }
+
+  function computeActiveDays(projectId, thresholdMinutes) {
+    var entries = projectEntries(projectId);
+    var byDay = {};
+    entries.forEach(function (e) {
+      var key = dayKey(e.startedAt);
+      byDay[key] = (byDay[key] || 0) + e.seconds;
+    });
+    var thresholdSeconds = (thresholdMinutes || 0) * 60;
+    var days = Object.keys(byDay).filter(function (key) {
+      return byDay[key] >= thresholdSeconds;
+    });
+    var excluded = Object.keys(byDay).length - days.length;
+    return { count: days.length, excluded: excluded, byDay: byDay };
+  }
+
+  function renderProjectView() {
+    var p = getProject(currentProjectId);
+    if (!p) { closeProjectView(); return; }
+
+    var entries = projectEntries(p.id);
+    var totalSeconds = entries.reduce(function (sum, e) { return sum + e.seconds; }, 0);
+    if (state.activeTimer && state.activeTimer.projectId === p.id) {
+      totalSeconds += (Date.now() - state.activeTimer.startedAt) / 1000;
+    }
+    var totalAmount = projectAmount(p.id);
+
+    document.getElementById('pv-name-display').textContent = p.name;
+    document.getElementById('pv-name-input').value = p.name;
+    document.getElementById('pv-color-dot').style.background = p.color || 'var(--stone-deep)';
+    renderColorSwatchPanel(p);
+    applyProjectHeaderColor(p);
+    var clientDisplay = document.getElementById('pv-client-display');
+    var clientSelect = document.getElementById('pv-client-input');
+    var linkedClient = p.clientId ? getClient(p.clientId) : null;
+    clientDisplay.textContent = linkedClient ? linkedClient.name : (p.client || '');
+    clientSelect.innerHTML = '<option value="">Aucun client</option>' +
+      state.clients.map(function (c) {
+        return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+      }).join('');
+    clientSelect.value = p.clientId || '';
+    document.getElementById('pv-rate-display').textContent = (p.rate || 0) + ' €/h';
+    document.getElementById('pv-rate-input').value = p.rate || 0;
+    document.getElementById('pv-total-hours').textContent = formatHoursShort(totalSeconds);
+    document.getElementById('pv-total-amount').textContent = formatMoney(totalAmount);
+
+    var archiveBtn = document.getElementById('pv-archive');
+    archiveBtn.innerHTML = p.archived ? svgUnarchive() : svgArchive();
+    archiveBtn.title = p.archived ? 'Désarchiver le projet' : 'Archiver le projet';
+
+    var threshold = projectThresholds[p.id] || 0;
+    var activeDays = computeActiveDays(p.id, threshold);
+    document.getElementById('pv-active-days').textContent = activeDays.count;
+    document.getElementById('pv-active-days-sub').textContent = activeDays.excluded > 0
+      ? activeDays.excluded + ' jour(s) sous le seuil exclus'
+      : '';
+    var avgPerDay = activeDays.count > 0 ? totalSeconds / activeDays.count : 0;
+    document.getElementById('pv-avg-day').textContent = formatHoursShort(avgPerDay);
+
+    renderActivityChart(p, entries, threshold);
+    renderBreakdown(p, entries, totalSeconds);
+    renderSubtaskManager(p);
+    renderProjectHistory(p);
+    scheduleSave();
+  }
+
+  function getChartRange(mode, offset) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var days = [];
+
+    if (mode === 'week') {
+      // Monday-start week containing "today + offset weeks"
+      var ref = new Date(today);
+      ref.setDate(ref.getDate() + offset * 7);
+      var weekday = ref.getDay(); // 0 = Sunday
+      var diffToMonday = (weekday === 0) ? -6 : 1 - weekday;
+      var monday = new Date(ref);
+      monday.setDate(ref.getDate() + diffToMonday);
+      for (var i = 0; i < 7; i++) {
+        var d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        days.push(d);
+      }
+    } else {
+      var ref2 = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+      var year = ref2.getFullYear();
+      var month = ref2.getMonth();
+      var daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (var j = 1; j <= daysInMonth; j++) {
+        days.push(new Date(year, month, j));
+      }
+    }
+    return days;
+  }
+
+  function formatChartRangeLabel(mode, days) {
+    if (days.length === 0) return '';
+    if (mode === 'week') {
+      var start = days[0], end = days[days.length - 1];
+      var sameMonth = start.getMonth() === end.getMonth();
+      var startStr = start.toLocaleDateString('fr-FR', { day: '2-digit', month: sameMonth ? undefined : 'short' });
+      var endStr = end.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+      return startStr + ' – ' + endStr;
+    } else {
+      return days[0].toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  function renderActivityChart(p, entries, thresholdMinutes) {
+    var days = getChartRange(chartMode, chartOffset);
+    document.getElementById('chart-range-label').textContent = formatChartRangeLabel(chartMode, days);
+
+    var byDay = {};
+    entries.forEach(function (e) {
+      var key = dayKey(e.startedAt);
+      byDay[key] = (byDay[key] || 0) + e.seconds;
+    });
+    if (state.activeTimer && state.activeTimer.projectId === p.id) {
+      var key = dayKey(new Date(state.activeTimer.startedAt).toISOString());
+      byDay[key] = (byDay[key] || 0) + (Date.now() - state.activeTimer.startedAt) / 1000;
+    }
+
+    var todayKey = dayKey(new Date().toISOString());
+    var thresholdSeconds = (thresholdMinutes || 0) * 60;
+
+    var values = days.map(function (d) {
+      return byDay[dayKey(d.toISOString())] || 0;
+    });
+    var maxSeconds = Math.max.apply(null, values.concat([3600])); // floor at 1h scale
+
+    var container = document.getElementById('chart-bars');
+    var empty = document.getElementById('chart-empty');
+    container.innerHTML = '';
+
+    var hasAny = values.some(function (v) { return v > 0; });
+    empty.style.display = hasAny ? 'none' : 'block';
+
+    days.forEach(function (d, idx) {
+      var seconds = values[idx];
+      var key = dayKey(d.toISOString());
+      var heightPct = seconds > 0 ? Math.max((seconds / maxSeconds) * 100, 3) : 0;
+
+      var col = document.createElement('div');
+      col.className = 'chart-bar-col';
+      if (key === todayKey) col.classList.add('is-today');
+      if (seconds > 0 && seconds < thresholdSeconds) col.classList.add('is-below-threshold');
+
+      var labelDay = chartMode === 'week'
+        ? d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')
+        : String(d.getDate());
+
+      col.innerHTML =
+        '<span class="chart-bar-value">' + (seconds > 0 ? formatHoursShort(seconds) : '') + '</span>' +
+        '<div class="chart-bar-track"><div class="chart-bar-fill" style="height:' + heightPct + '%;"></div></div>' +
+        '<span class="chart-bar-label">' + labelDay + '</span>';
+
+      container.appendChild(col);
+    });
+  }
+
+  function renderBreakdown(p, entries, totalSeconds) {
+    var list = document.getElementById('breakdown-list');
+    list.innerHTML = '';
+
+    var bySubtask = {}; // null key = sans sous-tâche
+    entries.forEach(function (e) {
+      var key = e.subtaskId || '__none__';
+      bySubtask[key] = (bySubtask[key] || 0) + e.seconds;
+    });
+    if (state.activeTimer && state.activeTimer.projectId === p.id) {
+      var key = state.activeTimer.subtaskId || '__none__';
+      bySubtask[key] = (bySubtask[key] || 0) + (Date.now() - state.activeTimer.startedAt) / 1000;
+    }
+
+    var rows = [];
+    (p.subtasks || []).forEach(function (s) {
+      rows.push({
+        name: s.name,
+        seconds: bySubtask[s.id] || 0,
+        rate: (s.rate !== null && s.rate !== undefined && s.rate !== '') ? s.rate : p.rate,
+        hasOwnRate: s.rate !== null && s.rate !== undefined && s.rate !== ''
+      });
+    });
+    rows.push({ name: 'Sans sous-tâche', seconds: bySubtask['__none__'] || 0, rate: p.rate, hasOwnRate: false });
+
+    rows = rows.filter(function (r) { return r.seconds > 0; });
+
+    if (rows.length === 0) {
+      var emptyRow = document.createElement('p');
+      emptyRow.style.cssText = 'font-size:13px; color:var(--grey); padding:8px 0;';
+      emptyRow.textContent = 'Aucune session enregistrée pour ce projet.';
+      list.appendChild(emptyRow);
+      return;
+    }
+
+    rows.sort(function (a, b) { return b.seconds - a.seconds; });
+
+    rows.forEach(function (r) {
+      var pct = totalSeconds > 0 ? Math.round((r.seconds / totalSeconds) * 100) : 0;
+      var amount = (r.seconds / 3600) * (r.rate || 0);
+
+      var row = document.createElement('div');
+      row.className = 'breakdown-row';
+      row.innerHTML =
+        '<span class="breakdown-name">' + escapeHtml(r.name) +
+          (r.hasOwnRate ? '<span class="breakdown-own-rate"> · ' + r.rate + ' €/h</span>' : '') +
+        '</span>' +
+        '<div class="breakdown-stats">' +
+          '<span class="breakdown-pct">' + pct + '%</span>' +
+          '<span class="breakdown-hours">' + formatHoursShort(r.seconds) + '</span>' +
+        '</div>' +
+        '<span class="breakdown-amount">' + formatMoney(amount) + '</span>' +
+        '<div class="breakdown-bar-wrap"><div class="breakdown-bar-fill" style="width:' + pct + '%;"></div></div>';
+      list.appendChild(row);
+    });
+  }
+
+  function renderSubtaskManager(p) {
+    var chips = document.getElementById('subtask-chips');
+    chips.innerHTML = '';
+
+    if (!p.subtasks || p.subtasks.length === 0) {
+      var none = document.createElement('p');
+      none.style.cssText = 'font-size:12px; color:var(--grey); margin:0 0 10px;';
+      none.textContent = 'Aucune sous-tâche pour ce projet.';
+      chips.appendChild(none);
+    } else {
+      p.subtasks.forEach(function (s) {
+        var hasOwnRate = s.rate !== null && s.rate !== undefined && s.rate !== '';
+        var chip = document.createElement('span');
+        chip.className = 'subtask-chip';
+
+        var nameSpan = document.createElement('span');
+        nameSpan.textContent = s.name;
+        chip.appendChild(nameSpan);
+
+        var rateBtn = document.createElement('button');
+        rateBtn.className = 'subtask-chip-rate';
+        rateBtn.textContent = hasOwnRate ? s.rate + ' €/h' : '+ taux';
+        rateBtn.title = 'Définir un taux horaire spécifique pour cette sous-tâche';
+        rateBtn.onclick = function () {
+          var current = hasOwnRate ? s.rate : '';
+          var val = prompt('Taux horaire pour "' + s.name + '" (laisser vide pour hériter du taux du projet, ' + (p.rate || 0) + ' €/h) :', current);
+          if (val === null) return; // annulé
+          val = val.trim();
+          if (val === '') {
+            s.rate = null;
+          } else {
+            var parsed = parseFloat(val);
+            s.rate = isNaN(parsed) ? null : parsed;
+          }
+          renderProjectView();
+        };
+        chip.appendChild(rateBtn);
+
+        var delBtn = document.createElement('button');
+        delBtn.innerHTML = svgClose();
+        delBtn.setAttribute('aria-label', 'Supprimer la sous-tâche');
+        delBtn.onclick = function () {
+          if (confirm('Supprimer cette sous-tâche ? Les sessions liées seront reclassées en "sans sous-tâche".')) {
+            p.subtasks = p.subtasks.filter(function (st) { return st.id !== s.id; });
+            state.entries.forEach(function (e) {
+              if (e.subtaskId === s.id) e.subtaskId = null;
+            });
+            renderProjectView();
+          }
+        };
+        chip.appendChild(delBtn);
+        chips.appendChild(chip);
+      });
+    }
+  }
+
+  function exportProjectCsv(p) {
+    var entries = projectEntries(p.id).slice().sort(function (a, b) {
+      return new Date(a.startedAt) - new Date(b.startedAt);
+    });
+
+    var rows = [];
+    rows.push(['Date', 'Début', 'Fin', 'Durée (h)', 'Sous-tâche', 'Taux (€/h)', 'Montant (€)']);
+
+    entries.forEach(function (e) {
+      var endDate = entryEndDate(e);
+      var sub = subtaskName(e.projectId, e.subtaskId) || '';
+      var rate = effectiveRate(p, e.subtaskId);
+      var hours = e.seconds / 3600;
+      var amount = hours * rate;
+      var dateStr = new Date(e.startedAt).toLocaleDateString('fr-FR');
+
+      rows.push([
+        dateStr,
+        formatTimeInput(e.startedAt),
+        formatTimeInput(endDate.toISOString()),
+        hours.toFixed(2),
+        sub,
+        rate.toFixed(2),
+        amount.toFixed(2)
+      ]);
+    });
+
+    var totalSeconds = entries.reduce(function (sum, e) { return sum + e.seconds; }, 0);
+    rows.push([]);
+    rows.push(['Total', '', '', (totalSeconds / 3600).toFixed(2), '', '', projectAmount(p.id).toFixed(2)]);
+
+    var csv = rows.map(function (row) {
+      return row.map(function (cell) {
+        var str = String(cell);
+        if (str.indexOf(';') !== -1 || str.indexOf('"') !== -1) {
+          str = '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+      }).join(';');
+    }).join('\r\n');
+
+    var bom = '\uFEFF'; // pour ouverture correcte des accents dans Excel
+    var blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var safeName = p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    var dateTag = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'timeunit-' + (safeName || 'projet') + '-' + dateTag + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function renderProjectHistory(p) {
+    var historyList = document.getElementById('pv-history-list');
+    var historyEmpty = document.getElementById('pv-history-empty');
+    historyList.innerHTML = '';
+
+    var sorted = projectEntries(p.id).sort(function (a, b) {
+      return new Date(b.startedAt) - new Date(a.startedAt);
+    });
+
+    if (sorted.length === 0) {
+      historyEmpty.style.display = 'block';
+      return;
+    }
+    historyEmpty.style.display = 'none';
+
+    var currentDay = null;
+
+    sorted.forEach(function (entry) {
+      var key = dayKey(entry.startedAt);
+      if (key !== currentDay) {
+        currentDay = key;
+        var dayTotal = sorted
+          .filter(function (e) { return dayKey(e.startedAt) === key; })
+          .reduce(function (sum, e) { return sum + e.seconds; }, 0);
+
+        var divider = document.createElement('div');
+        divider.className = 'day-divider';
+        divider.innerHTML =
+          '<span class="day-label">' + formatDayLabel(entry.startedAt) + '</span>' +
+          '<span class="day-line"></span>' +
+          '<span class="day-total">' + formatDuration(dayTotal) + '</span>';
+        historyList.appendChild(divider);
+      }
+
+      var row = document.createElement('div');
+      row.className = 'history-row';
+
+      var sub = subtaskName(entry.projectId, entry.subtaskId);
+      var main = document.createElement('div');
+      main.className = 'history-row-main';
+      main.innerHTML =
+        (sub
+          ? '<span class="history-project">' + escapeHtml(sub) + '</span>'
+          : '<span class="history-project" style="color:var(--grey);">Sans sous-tâche</span>');
+
+      var endDate = entryEndDate(entry);
+      var rangeCol = document.createElement('div');
+      rangeCol.className = 'history-range-col';
+      rangeCol.innerHTML =
+        '<div class="history-range">' +
+          '<span class="history-range-lcd">' + formatTimeInput(entry.startedAt) + '</span>' +
+          '<span class="history-range-arrow">→</span>' +
+          '<span class="history-range-lcd">' + formatTimeInput(endDate.toISOString()) + '</span>' +
+        '</div>' +
+        '<span class="history-duration-small">' + formatDuration(entry.seconds) + '</span>';
+
+      var editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label', 'Modifier cette session');
+      editBtn.innerHTML = svgEdit();
+      editBtn.onclick = function () {
+        openEditId = (openEditId === entry.id) ? null : entry.id;
+        editMode = 'duration';
+        renderProjectHistory(p);
+      };
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.setAttribute('aria-label', 'Supprimer cette session');
+      delBtn.innerHTML = svgClose();
+      delBtn.onclick = function () { deleteEntry(entry.id); renderProjectView(); };
+
+      row.appendChild(main);
+      row.appendChild(rangeCol);
+      row.appendChild(editBtn);
+      row.appendChild(delBtn);
+      historyList.appendChild(row);
+
+      if (openEditId === entry.id) {
+        var panel = buildEditPanel(entry, function () { renderProjectHistory(p); });
+        historyList.appendChild(panel);
+      }
+    });
+  }
+
+  document.getElementById('back-to-home').onclick = closeProjectView;
+
+  document.querySelectorAll('.main-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      switchMainTab(btn.getAttribute('data-tab'));
+    });
+  });
+  document.getElementById('back-from-invoicing').onclick = closeInvoicingView;
+
+  document.getElementById('inv-year-select').onchange = function () {
+    invoiceYearFilter = parseInt(this.value, 10);
+    renderInvoicingView();
+  };
+
+  document.getElementById('dash-period-select').onchange = function () {
+    renderDashClientRanking();
+  };
+
+  var selectedVat = 10;
+
+  document.getElementById('add-invoice-btn').onclick = function () {
+    var panel = document.getElementById('invoice-new-panel');
+    panel.classList.add('open');
+    var dateInput = document.getElementById('inv-new-date');
+    if (!dateInput.value) {
+      dateInput.value = new Date().toISOString().slice(0, 10);
+    }
+    document.getElementById('inv-new-number').focus();
+  };
+
+  document.getElementById('inv-new-cancel').onclick = function () {
+    document.getElementById('invoice-new-panel').classList.remove('open');
+    document.getElementById('inv-new-number').value = '';
+    document.getElementById('inv-new-amount').value = '';
+    updateInvoiceBreakdown();
+  };
+
+  function updateInvoiceBreakdown() {
+    var amount = parseFloat(document.getElementById('inv-new-amount').value) || 0;
+    var ttc = amount * (1 + selectedVat / 100);
+    document.getElementById('inv-new-breakdown').innerHTML = 'TTC : <b>' + formatMoney(ttc) + '</b>';
+  }
+
+  document.getElementById('inv-new-amount').oninput = updateInvoiceBreakdown;
+
+  document.querySelectorAll('#inv-new-vat-toggle button').forEach(function (btn) {
+    btn.onclick = function () {
+      document.querySelectorAll('#inv-new-vat-toggle button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      selectedVat = parseFloat(btn.getAttribute('data-vat'));
+      updateInvoiceBreakdown();
+    };
+  });
+
+  document.getElementById('inv-new-confirm').onclick = function () {
+    var number = document.getElementById('inv-new-number').value.trim();
+    var projectId = document.getElementById('inv-new-project').value;
+    var date = document.getElementById('inv-new-date').value;
+    var amount = parseFloat(document.getElementById('inv-new-amount').value) || 0;
+    if (!projectId || !date || amount <= 0) return;
+
+    state.invoices.push({
+      id: genId(),
+      number: number,
+      projectId: projectId,
+      date: date,
+      amount: amount,
+      vat: selectedVat,
+      status: 'sent'
+    });
+
+    invoiceYearFilter = new Date(date).getFullYear();
+
+    document.getElementById('invoice-new-panel').classList.remove('open');
+    document.getElementById('inv-new-number').value = '';
+    document.getElementById('inv-new-amount').value = '';
+    updateInvoiceBreakdown();
+    renderInvoicingView();
+  };
+
+  document.querySelectorAll('.invoice-sort-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-sort');
+      if (invoiceSortKey === key) {
+        invoiceSortDir = invoiceSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        invoiceSortKey = key;
+        invoiceSortDir = key === 'date' || key === 'ttc' ? 'desc' : 'asc';
+      }
+      renderInvoiceTable();
+    });
+  });
+
+  document.getElementById('add-projection-btn').onclick = function () {
+    document.getElementById('projection-new-panel').classList.add('open');
+    document.getElementById('proj-new-amount').focus();
+  };
+
+  document.getElementById('proj-new-cancel').onclick = function () {
+    document.getElementById('projection-new-panel').classList.remove('open');
+    document.getElementById('proj-new-amount').value = '';
+  };
+
+  document.getElementById('proj-new-confirm').onclick = function () {
+    var projectId = document.getElementById('proj-new-project').value;
+    var amount = parseFloat(document.getElementById('proj-new-amount').value) || 0;
+    if (!projectId || amount <= 0) return;
+
+    state.projections.push({ id: genId(), projectId: projectId, amount: amount });
+
+    document.getElementById('projection-new-panel').classList.remove('open');
+    document.getElementById('proj-new-amount').value = '';
+    renderInvoicingView();
+  };
+
+  document.getElementById('add-client-btn').onclick = function () {
+    document.getElementById('client-new-panel').classList.add('open');
+    document.getElementById('cl-new-name').focus();
+  };
+
+  document.getElementById('cl-new-cancel').onclick = function () {
+    document.getElementById('client-new-panel').classList.remove('open');
+    document.getElementById('cl-new-name').value = '';
+    document.getElementById('cl-new-contact').value = '';
+  };
+
+  document.getElementById('cl-new-confirm').onclick = function () {
+    var name = document.getElementById('cl-new-name').value.trim();
+    var contact = document.getElementById('cl-new-contact').value.trim();
+    if (!name) return;
+
+    var newClient = {
+      id: genId(), name: name, contact: contact,
+      email: '', phone: '', address: '', siret: '', notes: ''
+    };
+    state.clients.push(newClient);
+
+    document.getElementById('client-new-panel').classList.remove('open');
+    document.getElementById('cl-new-name').value = '';
+    document.getElementById('cl-new-contact').value = '';
+    openClientId = newClient.id;
+    renderClientsView();
+  };
+
+  document.getElementById('pv-color-dot').onclick = function () {
+    var panel = document.getElementById('color-swatch-panel');
+    panel.style.display = panel.style.display === 'none' ? 'grid' : 'none';
+  };
+
+  document.getElementById('pv-name-display').onclick = function () {
+    var display = document.getElementById('pv-name-display');
+    var input = document.getElementById('pv-name-input');
+    display.style.display = 'none';
+    input.style.display = 'inline-block';
+    input.focus();
+    input.select();
+  };
+
+  function commitProjectName() {
+    var input = document.getElementById('pv-name-input');
+    var display = document.getElementById('pv-name-display');
+    var p = getProject(currentProjectId);
+    if (p) {
+      var newName = input.value.trim();
+      if (newName) p.name = newName;
+    }
+    input.style.display = 'none';
+    display.style.display = 'inline-block';
+    renderProjectView();
+    render();
+  }
+
+  document.getElementById('pv-name-input').onblur = commitProjectName;
+  document.getElementById('pv-name-input').onkeydown = function (e) {
+    if (e.key === 'Enter') this.blur();
+  };
+
+  document.getElementById('pv-rate-display').onclick = function () {
+    var display = document.getElementById('pv-rate-display');
+    var input = document.getElementById('pv-rate-input');
+    display.style.display = 'none';
+    input.style.display = 'inline-block';
+    input.focus();
+    input.select();
+  };
+
+  function commitProjectRate() {
+    var input = document.getElementById('pv-rate-input');
+    var display = document.getElementById('pv-rate-display');
+    var p = getProject(currentProjectId);
+    if (p) {
+      p.rate = parseFloat(input.value) || 0;
+    }
+    input.style.display = 'none';
+    display.style.display = 'inline-block';
+    renderProjectView();
+  }
+
+  document.getElementById('pv-rate-input').onblur = commitProjectRate;
+  document.getElementById('pv-rate-input').onkeydown = function (e) {
+    if (e.key === 'Enter') this.blur();
+  };
+
+  document.getElementById('pv-threshold').oninput = function () {
+    var val = parseFloat(this.value) || 0;
+    projectThresholds[currentProjectId] = val;
+    renderProjectView();
+  };
+
+  document.getElementById('chart-mode-week').onclick = function () {
+    if (chartMode === 'week') return;
+    chartMode = 'week';
+    chartOffset = 0;
+    document.getElementById('chart-mode-week').classList.add('active');
+    document.getElementById('chart-mode-month').classList.remove('active');
+    renderProjectView();
+  };
+  document.getElementById('chart-mode-month').onclick = function () {
+    if (chartMode === 'month') return;
+    chartMode = 'month';
+    chartOffset = 0;
+    document.getElementById('chart-mode-month').classList.add('active');
+    document.getElementById('chart-mode-week').classList.remove('active');
+    renderProjectView();
+  };
+  document.getElementById('chart-nav-prev').onclick = function () {
+    chartOffset -= 1;
+    renderProjectView();
+  };
+  document.getElementById('chart-nav-next').onclick = function () {
+    chartOffset += 1;
+    renderProjectView();
+  };
+
+  document.getElementById('pv-client-display').onclick = function () {
+    var display = document.getElementById('pv-client-display');
+    var select = document.getElementById('pv-client-input');
+    display.style.display = 'none';
+    select.style.display = 'inline-block';
+    select.focus();
+  };
+
+  function commitProjectClient() {
+    var select = document.getElementById('pv-client-input');
+    var display = document.getElementById('pv-client-display');
+    var p = getProject(currentProjectId);
+    if (p) {
+      p.clientId = select.value || null;
+      var linked = p.clientId ? getClient(p.clientId) : null;
+      p.client = linked ? linked.name : '';
+    }
+    select.style.display = 'none';
+    display.style.display = 'inline-block';
+    renderProjectView();
+  }
+
+  document.getElementById('pv-client-input').onchange = commitProjectClient;
+  document.getElementById('pv-client-input').onblur = function () {
+    document.getElementById('pv-client-input').style.display = 'none';
+    document.getElementById('pv-client-display').style.display = 'inline-block';
+  };
+
+  document.getElementById('pv-archive').onclick = function () {
+    var p = getProject(currentProjectId);
+    if (p) {
+      p.archived = !p.archived;
+      renderProjectView();
+    }
+  };
+
+  document.getElementById('pv-export-btn').onclick = function () {
+    var p = getProject(currentProjectId);
+    if (p) exportProjectCsv(p);
+  };
+
+  document.getElementById('pv-delete').onclick = function () {
+    if (confirm('Supprimer ce projet et toutes ses sessions ?')) {
+      deleteProject(currentProjectId);
+      closeProjectView();
+    }
+  };
+
+  document.getElementById('subtask-add-btn').onclick = function () {
+    var input = document.getElementById('subtask-new-name');
+    var rateInput = document.getElementById('subtask-new-rate');
+    var name = input.value.trim();
+    if (!name) return;
+    var p = getProject(currentProjectId);
+    if (!p.subtasks) p.subtasks = [];
+    var rateVal = rateInput.value.trim();
+    var rate = rateVal === '' ? null : (parseFloat(rateVal) || 0);
+    p.subtasks.push({ id: genId(), name: name, rate: rate });
+    input.value = '';
+    rateInput.value = '';
+    renderProjectView();
+  };
+  document.getElementById('subtask-new-name').onkeydown = function (e) {
+    if (e.key === 'Enter') document.getElementById('subtask-add-btn').click();
+  };
+  document.getElementById('subtask-new-rate').onkeydown = function (e) {
+    if (e.key === 'Enter') document.getElementById('subtask-add-btn').click();
+  };
+
+  document.getElementById('launch-select').onchange = function () {
+    document.getElementById('launch-toggle').disabled = !this.value;
+    updateSubtaskSelect();
+  };
+  document.getElementById('launch-toggle').onclick = function () {
+    if (state.activeTimer) {
+      stopTimer();
+    } else {
+      var select = document.getElementById('launch-select');
+      var subSelect = document.getElementById('launch-subtask-select');
+      if (select.value) startTimer(select.value, subSelect.value || null);
+    }
+  };
+
+  document.getElementById('archived-toggle').onclick = function () {
+    archivedSectionOpen = !archivedSectionOpen;
+    renderArchivedSection();
+  };
+
+  document.getElementById('add-project-btn').onclick = function () {
+    document.getElementById('new-panel').classList.add('open');
+    var clientSelect = document.getElementById('np-client');
+    clientSelect.innerHTML = '<option value="">Aucun client</option>' +
+      state.clients.map(function (c) {
+        return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+      }).join('');
+    document.getElementById('np-name').focus();
+  };
+  document.getElementById('np-cancel').onclick = function () {
+    document.getElementById('new-panel').classList.remove('open');
+    document.getElementById('np-name').value = '';
+    document.getElementById('np-client').value = '';
+    document.getElementById('np-rate').value = '';
+  };
+  document.getElementById('np-confirm').onclick = function () {
+    var name = document.getElementById('np-name').value.trim();
+    var clientId = document.getElementById('np-client').value || null;
+    var client = clientId ? (getClient(clientId) || {}).name || '' : '';
+    var rate = parseFloat(document.getElementById('np-rate').value) || 0;
+    if (!name) return;
+    state.projects.push({ id: genId(), name: name, client: client, clientId: clientId, rate: rate, subtasks: [], archived: false });
+    document.getElementById('new-panel').classList.remove('open');
+    document.getElementById('np-name').value = '';
+    document.getElementById('np-client').value = '';
+    document.getElementById('np-rate').value = '';
+    render();
+  };
+
+  function tickClock() {
+    var now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR');
+  }
+
+  setInterval(function () {
+    if (state.activeTimer) {
+      if (currentView === 'project') {
+        renderProjectView();
+      } else {
+        render();
+      }
+    }
+    tickClock();
+  }, 1000);
+
+  tickClock();
+  render();
+})();
+</script>
+</body>
+</html>
