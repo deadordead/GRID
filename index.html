@@ -2806,67 +2806,15 @@
 
 <script>
 (function () {
-  // ===== DEMO DATA (interface only, no persistence yet) =====
+  // ===== APPLICATION STATE =====
+  // L'état démarre vide : les vraies données viennent de Firestore une fois connecté.
   var state = {
-    projects: [
-      {
-        id: 'p1', name: 'Refonte site web', client: 'Dupont SAS', clientId: 'cl1', color: '#2E7DD1', rate: 55, archived: false,
-        subtasks: [
-          { id: 's1', name: 'Intégration', rate: null },
-          { id: 's2', name: 'Recherche UX', rate: 70 }
-        ]
-      },
-      {
-        id: 'p2', name: 'Identité visuelle', client: 'Studio Lambert', clientId: 'cl2', color: '#C04CC2', rate: 48, archived: false,
-        subtasks: [
-          { id: 's3', name: 'Logo', rate: null }
-        ]
-      },
-      { id: 'p3', name: 'Bénévolat', client: 'Asso Quartier', clientId: 'cl3', rate: 0, archived: false, subtasks: [] }
-    ],
-    entries: [
-      { id: 'e1',  projectId: 'p1', subtaskId: null, seconds: 7380, startedAt: '2026-06-17T09:12:00' },
-      { id: 'e2',  projectId: 'p1', subtaskId: 's1', seconds: 5400, startedAt: '2026-06-17T14:00:00' },
-      { id: 'e3',  projectId: 'p2', subtaskId: 's3', seconds: 3600, startedAt: '2026-06-17T10:30:00' },
-      { id: 'e4',  projectId: 'p1', subtaskId: 's2', seconds: 2700, startedAt: '2026-06-16T18:00:00' },
-      { id: 'e5',  projectId: 'p3', subtaskId: null, seconds: 4200, startedAt: '2026-06-16T11:00:00' },
-      { id: 'e6',  projectId: 'p2', subtaskId: null, seconds: 1800, startedAt: '2026-06-16T09:15:00' },
-      { id: 'e7',  projectId: 'p1', subtaskId: 's1', seconds: 6000, startedAt: '2026-06-15T16:20:00' },
-      { id: 'e8',  projectId: 'p1', subtaskId: null, seconds: 3300, startedAt: '2026-06-15T09:00:00' },
-      { id: 'e9',  projectId: 'p2', subtaskId: 's3', seconds: 5100, startedAt: '2026-06-12T13:40:00' },
-      { id: 'e10', projectId: 'p3', subtaskId: null, seconds: 2400, startedAt: '2026-06-12T10:00:00' },
-      { id: 'e11', projectId: 'p1', subtaskId: null, seconds: 1500, startedAt: '2026-06-10T15:00:00' }
-    ],
-    activeTimer: { projectId: 'p1', subtaskId: null, startedAt: Date.now() - 1000 * 60 * 22 },
-    invoices: [
-      { id: 'inv-24a', number: '2024-005', projectId: 'p1', date: '2024-03-12', amount: 980, vat: 20, status: 'paid' },
-      { id: 'inv-24b', number: '2024-014', projectId: 'p2', date: '2024-09-20', amount: 410, vat: 10, status: 'paid' },
-      { id: 'inv0', number: '2025-021', projectId: 'p2', date: '2025-11-14', amount: 540, vat: 20, status: 'paid' },
-      { id: 'inv1', number: '2026-008', projectId: 'p1', date: '2026-05-30', amount: 1450, vat: 20, status: 'paid' },
-      { id: 'inv2', number: '2026-011', projectId: 'p2', date: '2026-06-10', amount: 620, vat: 10, status: 'sent' },
-      { id: 'inv3', number: '2026-012', projectId: 'p1', date: '2026-06-16', amount: 980, vat: 20, status: 'sent' }
-    ],
-    projections: [
-      { id: 'proj1', projectId: 'p3', amount: 300 }
-    ],
-    clients: [
-      {
-        id: 'cl1', name: 'Dupont SAS', contact: 'Jean Dupont',
-        email: 'jean.dupont@dupont-sas.fr', phone: '06 12 34 56 78',
-        address: '14 rue de la Paix, 75002 Paris',
-        siret: '852 123 456 00012', notes: ''
-      },
-      {
-        id: 'cl2', name: 'Studio Lambert', contact: 'Camille Lambert',
-        email: 'contact@studiolambert.com', phone: '06 98 76 54 32',
-        address: '', siret: '', notes: 'Préfère être contactée par email plutôt que par téléphone.'
-      },
-      {
-        id: 'cl3', name: 'Asso Quartier', contact: '',
-        email: 'contact@assoquartier.org', phone: '',
-        address: '', siret: '', notes: 'Bénévolat, pas de facturation.'
-      }
-    ]
+    projects: [],
+    entries: [],
+    activeTimer: null,
+    invoices: [],
+    projections: [],
+    clients: []
   };
 
   var HISTORY_LIMIT = 10;
