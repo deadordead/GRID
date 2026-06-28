@@ -3122,8 +3122,19 @@
     return { totalSeconds: totalSeconds, totalAmount: totalAmount };
   }
 
+  var longTimerNotified = false;
+
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
   function startTimer(projectId, subtaskId) {
     state.activeTimer = { projectId: projectId, subtaskId: subtaskId || null, startedAt: Date.now() };
+    longTimerNotified = false;
+    requestNotificationPermission();
     render();
   }
 
@@ -3140,6 +3151,7 @@
       });
     }
     state.activeTimer = null;
+    longTimerNotified = false;
     render();
   }
 
@@ -5075,6 +5087,28 @@
     document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR');
   }
 
+  var LONG_TIMER_THRESHOLD_SECONDS = 6 * 3600;
+
+  function checkLongRunningTimer() {
+    if (!state.activeTimer) { longTimerNotified = false; return; }
+    var elapsed = (Date.now() - state.activeTimer.startedAt) / 1000;
+    if (elapsed < LONG_TIMER_THRESHOLD_SECONDS) return;
+    if (longTimerNotified) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    longTimerNotified = true;
+    var p = getProject(state.activeTimer.projectId);
+    var projectLabel = p ? p.name : 'un projet';
+    try {
+      new Notification('GRID — chrono toujours actif', {
+        body: 'Le chrono sur "' + projectLabel + '" tourne depuis plus de 6h. Tu as oublié de l\'arrêter ?',
+        tag: 'grid-long-timer'
+      });
+    } catch (e) {
+      console.error('Notification impossible', e);
+    }
+  }
+
   setInterval(function () {
     if (state.activeTimer) {
       if (currentView === 'project') {
@@ -5082,6 +5116,7 @@
       } else {
         render();
       }
+      checkLongRunningTimer();
     }
     tickClock();
   }, 1000);
