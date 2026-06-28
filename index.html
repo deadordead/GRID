@@ -2778,11 +2778,11 @@
     saveState: function (uid, stateData) {
       return setDoc(doc(db, 'gridUsers', uid), stateData);
     },
-    subscribe: function (uid, callback) {
+    subscribe: function (uid, callback, onError) {
       if (firestoreUnsubscribe) firestoreUnsubscribe();
       firestoreUnsubscribe = onSnapshot(doc(db, 'gridUsers', uid), function (snap) {
-        callback(snap.exists() ? snap.data() : null);
-      });
+        callback(snap.exists() ? snap.data() : null, snap.metadata.hasPendingWrites);
+      }, onError || function (err) { console.error('Firestore onSnapshot error', err); });
       return firestoreUnsubscribe;
     },
     signOut: function () {
@@ -2882,11 +2882,16 @@
     if (el) el.textContent = text;
   }
 
+  var lastSavedSnapshot = null;
+
   function scheduleSave() {
     if (!gridUid || isLoadingFromRemote || !hasLoadedOnce) return;
+    var snapshot = JSON.stringify(state);
+    if (snapshot === lastSavedSnapshot) return; // rien n'a réellement changé
     if (saveTimer) clearTimeout(saveTimer);
     setSyncStatus('GRID — sauvegarde…');
     saveTimer = setTimeout(function () {
+      lastSavedSnapshot = snapshot;
       window.gridFirestore.saveState(gridUid, state).then(function () {
         setSyncStatus('GRID — synchronisé');
       }).catch(function (err) {
@@ -2905,26 +2910,71 @@
     state.projections = remoteData.projections || [];
     state.clients = remoteData.clients || [];
     isLoadingFromRemote = false;
+    lastSavedSnapshot = JSON.stringify(state);
+  }
+
+  function isUserTyping() {
+    var el = document.activeElement;
+    if (!el) return false;
+    var tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  }
+
+  var pendingRemoteData = null;
+  var pendingRemoteCheckTimer = null;
+
+  function waitUntilFreeThenApply(remoteData) {
+    pendingRemoteData = remoteData;
+    if (pendingRemoteCheckTimer) return;
+    pendingRemoteCheckTimer = setInterval(function () {
+      if (!isUserTyping()) {
+        clearInterval(pendingRemoteCheckTimer);
+        pendingRemoteCheckTimer = null;
+        var data = pendingRemoteData;
+        pendingRemoteData = null;
+        if (data) applyRemoteState(data);
+        renderEverything();
+      }
+    }, 600);
   }
 
   function initFirestoreSync(uid) {
     gridUid = uid;
     setSyncStatus('GRID — chargement…');
 
-    window.gridFirestore.loadState(uid).then(function (remoteData) {
-      if (remoteData) {
-        applyRemoteState(remoteData);
-      } else {
-        // Premier lancement pour ce compte : on part des données de démo déjà en mémoire
-        // et on les enregistre immédiatement comme point de départ.
+    window.gridFirestore.subscribe(uid, function (remoteData, hasPendingWrites) {
+      // hasPendingWrites = true veut dire que ce snapshot reflète une écriture
+      // qu'on vient nous-même d'envoyer (écho local) : pas besoin de ré-appliquer
+      // l'état, on l'a déjà en mémoire. On ignore pour éviter tout clignotement.
+      if (hasPendingWrites) {
+        if (!hasLoadedOnce) {
+          hasLoadedOnce = true;
+          setSyncStatus('GRID — synchronisé');
+          renderEverything();
+        }
+        return;
       }
-      hasLoadedOnce = true;
-      setSyncStatus('GRID — synchronisé');
-      renderEverything();
-      scheduleSave();
-    }).catch(function (err) {
+
+      if (!hasLoadedOnce) {
+        if (remoteData) applyRemoteState(remoteData);
+        hasLoadedOnce = true;
+        setSyncStatus('GRID — synchronisé');
+        renderEverything();
+        return;
+      }
+
+      // Mise à jour venant d'un autre appareil : si on est en train de taper
+      // quelque part, on attend que ce soit libre pour ne pas effacer la saisie.
+      if (isUserTyping()) {
+        waitUntilFreeThenApply(remoteData);
+      } else {
+        if (remoteData) applyRemoteState(remoteData);
+        setSyncStatus('GRID — synchronisé');
+        renderEverything();
+      }
+    }, function (err) {
       setSyncStatus('GRID — erreur de connexion');
-      console.error('Erreur chargement Firestore', err);
+      console.error('Erreur synchronisation Firestore', err);
       hasLoadedOnce = true;
       renderEverything();
     });
