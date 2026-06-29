@@ -2507,7 +2507,7 @@
       <div class="field-row">
         <div class="field" style="max-width: 130px;">
           <label for="inv-new-number">N° facture</label>
-          <input type="text" id="inv-new-number" class="mono" placeholder="2026-014">
+          <input type="text" id="inv-new-number" class="mono" placeholder="2026_01">
         </div>
         <div class="field">
           <label for="inv-new-project">Projet</label>
@@ -2519,7 +2519,7 @@
         </div>
         <div class="field" style="max-width: 120px;">
           <label for="inv-new-amount">Montant HT (€)</label>
-          <input type="number" id="inv-new-amount" class="mono" placeholder="1200" min="0" step="0.5">
+          <input type="number" id="inv-new-amount" class="mono" placeholder="1200" step="0.5">
         </div>
         <div class="field" style="max-width: 140px;">
           <label>TVA</label>
@@ -2618,9 +2618,18 @@
   <div id="clients-view" style="display:none;">
     <div class="section-head">
       <p class="section-title">Clients</p>
-      <button class="btn btn-primary" id="add-client-btn">
-        <span class="btn-plus"></span> Nouveau client
-      </button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="year-select-wrap" id="client-sort-wrap">
+          <select id="client-sort-select">
+            <option value="alpha">Ordre alphabétique</option>
+            <option value="year">Facturé cette année</option>
+            <option value="total">Total facturé</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="add-client-btn">
+          <span class="btn-plus"></span> Nouveau client
+        </button>
+      </div>
     </div>
 
     <div class="new-panel" id="client-new-panel">
@@ -3785,6 +3794,21 @@
     });
   }
 
+  function suggestNextInvoiceNumber(year) {
+    var yearInvoices = invoicesForYear(year);
+    var maxN = 0;
+    var prefix = String(year) + '_';
+    yearInvoices.forEach(function (inv) {
+      if (inv.number && inv.number.indexOf(prefix) === 0) {
+        var rest = inv.number.slice(prefix.length);
+        var n = parseInt(rest, 10);
+        if (!isNaN(n) && n > maxN) maxN = n;
+      }
+    });
+    var next = maxN + 1;
+    return prefix + String(next).padStart(2, '0');
+  }
+
   function renderInvoicingView() {
     var years = getInvoiceYears();
     if (years.indexOf(invoiceYearFilter) === -1) {
@@ -3993,16 +4017,32 @@
     }
     empty.style.display = 'none';
 
-    state.clients.forEach(function (c) {
-      var isOpen = openClientId === c.id;
+    var currentYear = new Date().getFullYear();
+    var sortKey = document.getElementById('client-sort-select').value || 'alpha';
+
+    var enriched = state.clients.map(function (c) {
       var linkedProjects = projectsForClient(c.id);
       var linkedProjectIds = linkedProjects.map(function (p) { return p.id; });
       var clientInvoices = state.invoices.filter(function (inv) { return linkedProjectIds.indexOf(inv.projectId) !== -1; });
-      var currentYear = new Date().getFullYear();
       var billedThisYear = clientInvoices
         .filter(function (inv) { return new Date(inv.date).getFullYear() === currentYear; })
         .reduce(function (sum, inv) { return sum + inv.amount; }, 0);
       var billedTotal = clientInvoices.reduce(function (sum, inv) { return sum + inv.amount; }, 0);
+      return { client: c, billedThisYear: billedThisYear, billedTotal: billedTotal };
+    });
+
+    enriched.sort(function (a, b) {
+      if (sortKey === 'year') return b.billedThisYear - a.billedThisYear;
+      if (sortKey === 'total') return b.billedTotal - a.billedTotal;
+      return a.client.name.localeCompare(b.client.name, 'fr', { sensitivity: 'base' });
+    });
+
+    enriched.forEach(function (entry) {
+      var c = entry.client;
+      var billedThisYear = entry.billedThisYear;
+      var billedTotal = entry.billedTotal;
+      var isOpen = openClientId === c.id;
+      var linkedProjects = projectsForClient(c.id);
       var initials = c.name.trim().slice(0, 2).toUpperCase();
 
       var card = document.createElement('div');
@@ -4753,7 +4793,15 @@
     if (!dateInput.value) {
       dateInput.value = new Date().toISOString().slice(0, 10);
     }
+    document.getElementById('inv-new-number').value = suggestNextInvoiceNumber(new Date(dateInput.value).getFullYear());
     document.getElementById('inv-new-number').focus();
+  };
+
+  document.getElementById('inv-new-date').onchange = function () {
+    var year = new Date(this.value).getFullYear();
+    if (!isNaN(year)) {
+      document.getElementById('inv-new-number').value = suggestNextInvoiceNumber(year);
+    }
   };
 
   document.getElementById('inv-new-cancel').onclick = function () {
@@ -4828,8 +4876,10 @@
     var number = document.getElementById('inv-new-number').value.trim();
     var projectId = document.getElementById('inv-new-project').value;
     var date = document.getElementById('inv-new-date').value;
-    var amount = parseFloat(document.getElementById('inv-new-amount').value) || 0;
-    if (!projectId || projectId === '__new__' || !date || amount <= 0) return;
+    var amountRaw = document.getElementById('inv-new-amount').value;
+    if (!projectId || projectId === '__new__' || !date || amountRaw === '') return;
+    var amount = parseFloat(amountRaw);
+    if (isNaN(amount)) return;
 
     state.invoices.push({
       id: genId(),
@@ -4883,6 +4933,10 @@
     document.getElementById('projection-new-panel').classList.remove('open');
     document.getElementById('proj-new-amount').value = '';
     renderInvoicingView();
+  };
+
+  document.getElementById('client-sort-select').onchange = function () {
+    renderClientsView();
   };
 
   document.getElementById('add-client-btn').onclick = function () {
