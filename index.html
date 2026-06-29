@@ -1715,14 +1715,16 @@
   }
   .invoice-amount-ht {
     font-family: 'Space Mono', monospace;
-    font-size: 12px;
-    color: var(--grey);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
     text-align: right;
   }
   .invoice-amount-ttc {
     font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: 13px;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--grey);
     text-align: right;
   }
 
@@ -2303,6 +2305,28 @@
         <span class="launch-live-lcd mono" id="launch-live-lcd">00:00:00</span>
       </div>
       <button class="launch-toggle" id="launch-toggle" disabled>START</button>
+    </div>
+
+    <div class="new-panel" id="launch-new-project-panel" style="display:none; margin-bottom: 0;">
+      <p class="quick-project-title">Nouveau projet</p>
+      <div class="field-row">
+        <div class="field">
+          <label for="lnp-name">Nom du projet</label>
+          <input type="text" id="lnp-name" placeholder="Refonte site web">
+        </div>
+        <div class="field">
+          <label for="lnp-client">Client</label>
+          <select id="lnp-client"><option value="">Aucun client</option></select>
+        </div>
+        <div class="field" style="max-width: 120px;">
+          <label for="lnp-rate">Taux (€/h)</label>
+          <input type="number" id="lnp-rate" class="mono" placeholder="50" min="0" step="0.5">
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn" id="lnp-cancel">Annuler</button>
+        <button class="btn btn-primary" id="lnp-confirm">Créer et sélectionner</button>
+      </div>
     </div>
 
     <div class="section-head">
@@ -3413,7 +3437,8 @@
     select.innerHTML = '<option value="">Choisir un projet…</option>' +
       launchableProjects.map(function (p) {
         return '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>';
-      }).join('');
+      }).join('') +
+      '<option value="__new__">+ Nouveau projet…</option>';
     if (launchableProjects.some(function (p) { return p.id === currentValue; })) {
       select.value = currentValue;
     }
@@ -5191,16 +5216,58 @@
   };
 
   document.getElementById('launch-select').onchange = function () {
-    document.getElementById('launch-toggle').disabled = !this.value;
+    if (this.value === '__new__') {
+      document.getElementById('launch-toggle').disabled = true;
+      var lnpClient = document.getElementById('lnp-client');
+      lnpClient.innerHTML = '<option value="">Aucun client</option>' +
+        state.clients.map(function (c) {
+          return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+        }).join('');
+      document.getElementById('launch-new-project-panel').style.display = 'block';
+      document.getElementById('lnp-name').focus();
+    } else {
+      document.getElementById('launch-toggle').disabled = !this.value;
+      document.getElementById('launch-new-project-panel').style.display = 'none';
+      updateSubtaskSelect();
+    }
+  };
+
+  document.getElementById('lnp-cancel').onclick = function () {
+    document.getElementById('launch-new-project-panel').style.display = 'none';
+    document.getElementById('launch-select').value = '';
+    document.getElementById('launch-toggle').disabled = true;
+    document.getElementById('lnp-name').value = '';
+    document.getElementById('lnp-rate').value = '';
+  };
+
+  document.getElementById('lnp-confirm').onclick = function () {
+    var name = document.getElementById('lnp-name').value.trim();
+    if (!name) { document.getElementById('lnp-name').focus(); return; }
+    var clientId = document.getElementById('lnp-client').value || null;
+    var client = clientId ? (getClient(clientId) || {}).name || '' : '';
+    var rate = parseFloat(document.getElementById('lnp-rate').value) || 0;
+
+    var newProject = { id: genId(), name: name, client: client, clientId: clientId, rate: rate, subtasks: [], archived: false };
+    state.projects.push(newProject);
+
+    document.getElementById('launch-new-project-panel').style.display = 'none';
+    document.getElementById('lnp-name').value = '';
+    document.getElementById('lnp-rate').value = '';
+
+    render(); // reconstruit le select avec le nouveau projet
+
+    document.getElementById('launch-select').value = newProject.id;
+    document.getElementById('launch-toggle').disabled = false;
     updateSubtaskSelect();
   };
+
   document.getElementById('launch-toggle').onclick = function () {
     if (state.activeTimer) {
       stopTimer();
     } else {
       var select = document.getElementById('launch-select');
       var subSelect = document.getElementById('launch-subtask-select');
-      if (select.value) startTimer(select.value, subSelect.value || null);
+      if (select.value && select.value !== '__new__') startTimer(select.value, subSelect.value || null);
     }
   };
 
