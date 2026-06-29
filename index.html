@@ -1630,12 +1630,12 @@
   }
   .invoice-table-head {
     display: grid;
-    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 50px;
+    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 76px;
     gap: 8px;
     align-items: center;
     padding: 10px 14px;
     background: var(--ink-deep);
-    min-width: 820px;
+    min-width: 846px;
   }
   .invoice-sort-btn {
     border: none;
@@ -1670,12 +1670,12 @@
   .invoice-table-body {
     display: flex;
     flex-direction: column;
-    min-width: 820px;
+    min-width: 846px;
   }
 
   .invoice-row {
     display: grid;
-    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 50px;
+    grid-template-columns: 90px 1fr 1fr 85px 60px 80px 90px 80px 76px;
     gap: 8px;
     align-items: center;
     padding: 11px 14px;
@@ -1753,6 +1753,7 @@
   .invoice-row-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 2px;
   }
 
   .invoice-empty {
@@ -2504,6 +2505,7 @@
     </div>
 
     <div class="new-panel" id="invoice-new-panel">
+      <p class="quick-project-title" id="invoice-panel-title" style="color:var(--grey); margin-bottom:10px;">Nouvelle facture</p>
       <div class="field-row">
         <div class="field" style="max-width: 130px;">
           <label for="inv-new-number">N° facture</label>
@@ -3932,6 +3934,15 @@
       statusSlot.appendChild(statusBtn);
 
       var actionsSlot = row.children[8];
+      var editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label', 'Modifier la facture');
+      editBtn.innerHTML = svgEdit();
+      editBtn.onclick = function () {
+        openInvoiceEditPanel(inv);
+      };
+      actionsSlot.appendChild(editBtn);
+
       var delBtn = document.createElement('button');
       delBtn.className = 'icon-btn';
       delBtn.setAttribute('aria-label', 'Supprimer la facture');
@@ -4785,8 +4796,12 @@
   };
 
   var selectedVat = 10;
+  var editingInvoiceId = null;
 
   document.getElementById('add-invoice-btn').onclick = function () {
+    editingInvoiceId = null;
+    document.getElementById('invoice-panel-title').textContent = 'Nouvelle facture';
+    document.getElementById('inv-new-confirm').textContent = 'Ajouter';
     var panel = document.getElementById('invoice-new-panel');
     panel.classList.add('open');
     var dateInput = document.getElementById('inv-new-date');
@@ -4794,10 +4809,48 @@
       dateInput.value = new Date().toISOString().slice(0, 10);
     }
     document.getElementById('inv-new-number').value = suggestNextInvoiceNumber(new Date(dateInput.value).getFullYear());
+    setVatToggle(selectedVat);
     document.getElementById('inv-new-number').focus();
   };
 
+  function setVatToggle(vat) {
+    selectedVat = vat;
+    document.querySelectorAll('#inv-new-vat-toggle button').forEach(function (b) {
+      b.classList.toggle('active', parseFloat(b.getAttribute('data-vat')) === vat);
+    });
+    updateInvoiceBreakdown();
+  }
+
+  function openInvoiceEditPanel(inv) {
+    editingInvoiceId = inv.id;
+    document.getElementById('invoice-panel-title').textContent = 'Modifier la facture';
+    document.getElementById('inv-new-confirm').textContent = 'Enregistrer';
+
+    // s'assurer que le projet de la facture apparaît dans la liste même s'il est archivé
+    var projectSelect = document.getElementById('inv-new-project');
+    if (!Array.from(projectSelect.options).some(function (o) { return o.value === inv.projectId; })) {
+      var p = getProject(inv.projectId);
+      if (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name + (p.client ? ' — ' + p.client : '') + ' (archivé)';
+        projectSelect.insertBefore(opt, projectSelect.lastElementChild);
+      }
+    }
+
+    document.getElementById('inv-new-number').value = inv.number || '';
+    projectSelect.value = inv.projectId;
+    document.getElementById('inv-new-date').value = inv.date;
+    document.getElementById('inv-new-amount').value = inv.amount;
+    setVatToggle(inv.vat || 10);
+    document.getElementById('quick-project-panel').style.display = 'none';
+
+    document.getElementById('invoice-new-panel').classList.add('open');
+    document.getElementById('invoice-new-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   document.getElementById('inv-new-date').onchange = function () {
+    if (editingInvoiceId) return; // on ne recalcule pas le numéro suggéré en mode édition
     var year = new Date(this.value).getFullYear();
     if (!isNaN(year)) {
       document.getElementById('inv-new-number').value = suggestNextInvoiceNumber(year);
@@ -4809,6 +4862,7 @@
     document.getElementById('inv-new-number').value = '';
     document.getElementById('inv-new-amount').value = '';
     document.getElementById('quick-project-panel').style.display = 'none';
+    editingInvoiceId = null;
     updateInvoiceBreakdown();
   };
 
@@ -4865,10 +4919,7 @@
 
   document.querySelectorAll('#inv-new-vat-toggle button').forEach(function (btn) {
     btn.onclick = function () {
-      document.querySelectorAll('#inv-new-vat-toggle button').forEach(function (b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      selectedVat = parseFloat(btn.getAttribute('data-vat'));
-      updateInvoiceBreakdown();
+      setVatToggle(parseFloat(btn.getAttribute('data-vat')));
     };
   });
 
@@ -4881,15 +4932,27 @@
     var amount = parseFloat(amountRaw);
     if (isNaN(amount)) return;
 
-    state.invoices.push({
-      id: genId(),
-      number: number,
-      projectId: projectId,
-      date: date,
-      amount: amount,
-      vat: selectedVat,
-      status: 'sent'
-    });
+    if (editingInvoiceId) {
+      var existing = state.invoices.find(function (i) { return i.id === editingInvoiceId; });
+      if (existing) {
+        existing.number = number;
+        existing.projectId = projectId;
+        existing.date = date;
+        existing.amount = amount;
+        existing.vat = selectedVat;
+      }
+      editingInvoiceId = null;
+    } else {
+      state.invoices.push({
+        id: genId(),
+        number: number,
+        projectId: projectId,
+        date: date,
+        amount: amount,
+        vat: selectedVat,
+        status: 'sent'
+      });
+    }
 
     invoiceYearFilter = new Date(date).getFullYear();
 
