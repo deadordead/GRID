@@ -5312,6 +5312,17 @@
   function tickClock() {
     var now = new Date();
     document.getElementById('clock').textContent = now.toLocaleTimeString('fr-FR');
+
+    if (state.activeTimer) {
+      var elapsed = Math.floor((Date.now() - state.activeTimer.startedAt) / 1000);
+      var h = Math.floor(elapsed / 3600);
+      var m = Math.floor((elapsed % 3600) / 60);
+      var s = elapsed % 60;
+      var lcd = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      document.title = '⏱ ' + lcd + ' — GRID';
+    } else {
+      document.title = 'GRID — suivi de temps & facturation';
+    }
   }
 
   var LONG_TIMER_THRESHOLD_SECONDS = 6 * 3600;
