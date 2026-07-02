@@ -2071,10 +2071,14 @@
   .dash-year-bars {
     display: flex;
     align-items: flex-end;
-    gap: 24px;
+    gap: 20px;
     height: 200px;
     padding: 0 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .dash-year-bars::-webkit-scrollbar { display: none; }
 
   .dash-year-col {
     display: flex;
@@ -2082,6 +2086,7 @@
     align-items: center;
     justify-content: flex-end;
     flex: 1;
+    min-width: 72px;
     max-width: 120px;
     height: 100%;
     gap: 8px;
@@ -4374,7 +4379,7 @@
       var impot = (typeof saved.impot === 'number') ? saved.impot : null;
       var charges = (benefice !== null && ca > 0) ? ((ca - benefice) / ca * 100) : null;
       var mensuel = (benefice !== null) ? benefice / 12 : null;
-      var salaire = (benefice !== null && impot !== null) ? benefice - impot : null;
+      var salaire = (benefice !== null && impot !== null) ? (benefice - impot) / 12 : null;
       return { ca: ca, benefice: benefice, impot: impot, charges: charges, mensuel: mensuel, salaire: salaire };
     }
 
@@ -4405,7 +4410,7 @@
       { key: 'charges',  label: '% de charges',             cls: '',            render: function (d) { return fmtCell(d.charges, true); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
       { key: 'mensuel',  label: 'Mensuel moyen',            cls: '',            render: function (d) { return fmtCell(d.mensuel, false); }, proj: function () { return formatMoney(projection / 12); } },
       { key: 'impot',    label: 'Impôt sur le revenu',      cls: '',            render: function (d, y) { return inputCell(y, 'impot', d.impot); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
-      { key: 'salaire',  label: 'Salaire net',              cls: 'row-salary',  render: function (d) { return fmtCell(d.salaire, false); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+      { key: 'salaire',  label: 'Salaire net / mois',        cls: 'row-salary',  render: function (d) { return fmtCell(d.salaire, false); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
     ];
 
     var yearDataCache = {};
