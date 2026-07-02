@@ -2221,6 +2221,95 @@
     }
   }
 
+  /* ===== TABLEAU DE PILOTAGE ===== */
+  .dash-pilot-wrap {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    overflow-x: auto;
+    margin-bottom: 28px;
+  }
+  .dash-pilot-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 540px;
+  }
+  .dash-pilot-table th {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: right;
+    padding: 10px 14px;
+    background: var(--ink-deep);
+    color: var(--stone-deep);
+    white-space: nowrap;
+  }
+  .dash-pilot-table th:first-child {
+    text-align: left;
+    color: var(--stone);
+  }
+  .dash-pilot-table th.is-current {
+    color: var(--signal);
+  }
+  .dash-pilot-table td {
+    padding: 9px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    text-align: right;
+    border-top: 1px solid var(--stone);
+    white-space: nowrap;
+  }
+  .dash-pilot-table td:first-child {
+    text-align: left;
+    font-family: 'Archivo', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--grey);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .dash-pilot-table tr.row-ca td {
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .dash-pilot-table tr.row-ca td:first-child {
+    color: var(--ink);
+    font-size: 12px;
+  }
+  .dash-pilot-table tr.row-salary td {
+    font-weight: 700;
+    color: var(--signal);
+  }
+  .dash-pilot-table tr.row-salary td:first-child {
+    color: var(--grey);
+  }
+  .dash-pilot-table tr.row-projection td {
+    color: var(--grey);
+    border-top: 2px dashed var(--stone-deep);
+    font-style: italic;
+  }
+  .dash-pilot-table tr.row-projection td:first-child {
+    font-style: normal;
+  }
+  .dash-pilot-input {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px dashed var(--stone-deep);
+    text-align: right;
+    width: 90px;
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  .dash-pilot-input:focus {
+    outline: none;
+    border-bottom-color: var(--signal);
+  }
+  .dash-pilot-input::placeholder { color: var(--stone-deep); }
+
   @media (max-width: 640px) {
     .project-stats-row {
       grid-template-columns: repeat(2, 1fr);
@@ -2696,6 +2785,16 @@
     </div>
 
     <div class="section-head">
+      <p class="section-subtitle">Pilotage annuel</p>
+    </div>
+    <div class="dash-pilot-wrap">
+      <table class="dash-pilot-table" id="dash-pilot-table">
+        <thead id="dash-pilot-head"></thead>
+        <tbody id="dash-pilot-body"></tbody>
+      </table>
+    </div>
+
+    <div class="section-head">
       <p class="section-subtitle">Classement clients</p>
       <div class="year-select-wrap" id="dash-period-wrap">
         <select id="dash-period-select">
@@ -2896,7 +2995,8 @@
     activeTimer: null,
     invoices: [],
     projections: [],
-    clients: []
+    clients: [],
+    yearlyData: {}  // { "2024": { benefice: 0, impot: 0 }, ... }
   };
 
   var HISTORY_LIMIT = 10;
@@ -2952,6 +3052,7 @@
     state.invoices = remoteData.invoices || [];
     state.projections = remoteData.projections || [];
     state.clients = remoteData.clients || [];
+    state.yearlyData = remoteData.yearlyData || {};
     isLoadingFromRemote = false;
     lastSavedSnapshot = JSON.stringify(state);
   }
@@ -4191,6 +4292,7 @@
 
   function renderDashboardView() {
     renderDashYearChart();
+    renderDashPilot();
     renderDashPeriodSelect();
     renderDashClientRanking();
   }
@@ -4240,6 +4342,102 @@
         '<span class="dash-year-label">' + y + '</span>';
 
       container.appendChild(col);
+    });
+  }
+
+  function renderDashPilot() {
+    var thead = document.getElementById('dash-pilot-head');
+    var tbody = document.getElementById('dash-pilot-body');
+    var currentYear = new Date().getFullYear();
+    var years = getInvoiceYears().slice().sort(function (a, b) { return a - b; });
+
+    if (years.length === 0) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--grey); padding:20px;">Aucune facture enregistrée pour l\'instant.</td></tr>';
+      return;
+    }
+
+    // HEADER : étiquette + une colonne par année + colonne projection
+    var headHtml = '<tr><th></th>' +
+      years.map(function (y) {
+        return '<th class="' + (y === currentYear ? 'is-current' : '') + '">' + y + '</th>';
+      }).join('') +
+      '<th class="is-current">Projection ' + currentYear + '</th>' +
+      '</tr>';
+    thead.innerHTML = headHtml;
+
+    // Calcul des données par année
+    function getYearData(y) {
+      var ca = invoicesForYear(y).reduce(function (s, i) { return s + i.amount; }, 0);
+      var saved = state.yearlyData[String(y)] || {};
+      var benefice = (typeof saved.benefice === 'number') ? saved.benefice : null;
+      var impot = (typeof saved.impot === 'number') ? saved.impot : null;
+      var charges = (benefice !== null && ca > 0) ? ((ca - benefice) / ca * 100) : null;
+      var mensuel = (benefice !== null) ? benefice / 12 : null;
+      var salaire = (benefice !== null && impot !== null) ? benefice - impot : null;
+      return { ca: ca, benefice: benefice, impot: impot, charges: charges, mensuel: mensuel, salaire: salaire };
+    }
+
+    // Projection année en cours
+    var caCurrentYearSoFar = invoicesForYear(currentYear).reduce(function (s, i) { return s + i.amount; }, 0);
+    var projectionTotal = state.projections.reduce(function (s, p) { return s + p.amount; }, 0);
+    var projection = caCurrentYearSoFar + projectionTotal;
+
+    function fmtCell(val, isPercent) {
+      if (val === null) return '<span style="color:var(--stone-deep)">—</span>';
+      if (isPercent) return Math.round(val) + '%';
+      return formatMoney(val);
+    }
+
+    function inputCell(y, field, currentVal) {
+      var yStr = String(y);
+      var placeholder = field === 'benefice' ? 'Bénéfice' : 'Impôt';
+      var val = currentVal !== null ? currentVal : '';
+      return '<input class="dash-pilot-input" type="number" step="1" ' +
+        'placeholder="' + placeholder + '" ' +
+        'value="' + val + '" ' +
+        'data-year="' + yStr + '" data-field="' + field + '">';
+    }
+
+    var rows = [
+      { key: 'ca',       label: 'Chiffre d\'affaires (HT)', cls: 'row-ca',      render: function (d) { return fmtCell(d.ca, false); }, proj: function () { return formatMoney(caCurrentYearSoFar); } },
+      { key: 'benefice', label: 'Bénéfice',                 cls: '',            render: function (d, y) { return inputCell(y, 'benefice', d.benefice); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+      { key: 'charges',  label: '% de charges',             cls: '',            render: function (d) { return fmtCell(d.charges, true); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+      { key: 'mensuel',  label: 'Mensuel moyen',            cls: '',            render: function (d) { return fmtCell(d.mensuel, false); }, proj: function () { return formatMoney(projection / 12); } },
+      { key: 'impot',    label: 'Impôt sur le revenu',      cls: '',            render: function (d, y) { return inputCell(y, 'impot', d.impot); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+      { key: 'salaire',  label: 'Salaire net',              cls: 'row-salary',  render: function (d) { return fmtCell(d.salaire, false); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+    ];
+
+    var yearDataCache = {};
+    years.forEach(function (y) { yearDataCache[y] = getYearData(y); });
+
+    tbody.innerHTML = rows.map(function (row) {
+      var cells = years.map(function (y) {
+        return '<td>' + row.render(yearDataCache[y], y) + '</td>';
+      }).join('');
+      var projCell = '<td class="row-projection-cell">' + row.proj() + '</td>';
+      return '<tr class="' + row.cls + '">' +
+        '<td>' + row.label + '</td>' + cells + projCell + '</tr>';
+    }).join('') +
+    '<tr class="row-projection"><td>Projection CA ' + currentYear + '</td>' +
+      years.map(function () { return '<td>—</td>'; }).join('') +
+      '<td><strong>' + formatMoney(projection) + '</strong></td>' +
+    '</tr>';
+
+    // Listeners sur les inputs éditables
+    tbody.querySelectorAll('.dash-pilot-input').forEach(function (input) {
+      input.onchange = function () {
+        var y = this.getAttribute('data-year');
+        var field = this.getAttribute('data-field');
+        var val = parseFloat(this.value);
+        if (!state.yearlyData[y]) state.yearlyData[y] = {};
+        if (!isNaN(val)) {
+          state.yearlyData[y][field] = val;
+        } else {
+          delete state.yearlyData[y][field];
+        }
+        renderDashPilot();
+      };
     });
   }
 
