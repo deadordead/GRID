@@ -535,6 +535,21 @@
   .archived-toggle.open svg {
     transform: rotate(90deg);
   }
+  .archived-year-sep {
+    width: 100%;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--stone-deep);
+    text-transform: uppercase;
+    padding: 10px 4px 4px;
+    border-bottom: 1px solid var(--stone);
+    margin-bottom: 4px;
+  }
+  .archived-year-sep:first-child {
+    padding-top: 4px;
+  }
   .module.is-archived {
     opacity: 0.6;
   }
@@ -3497,7 +3512,43 @@
     list.style.display = archivedSectionOpen ? 'flex' : 'none';
     list.innerHTML = '';
 
-    archived.forEach(function (p, idx) {
+    // Grouper par année de la dernière facture liée (ou "Sans date")
+    function lastInvoiceYear(p) {
+      var invoices = state.invoices.filter(function (inv) { return inv.projectId === p.id; });
+      if (invoices.length === 0) return null;
+      return invoices.reduce(function (max, inv) {
+        var y = new Date(inv.date).getFullYear();
+        return y > max ? y : max;
+      }, 0);
+    }
+
+    // Trier par année décroissante, puis alphabétique
+    var withYear = archived.map(function (p) { return { p: p, year: lastInvoiceYear(p) }; });
+    withYear.sort(function (a, b) {
+      if (a.year === b.year) return a.p.name.localeCompare(b.p.name, 'fr');
+      if (a.year === null) return 1;
+      if (b.year === null) return -1;
+      return b.year - a.year;
+    });
+
+    // Construire par groupes avec séparateurs
+    var currentGroupYear = undefined;
+    var globalIdx = 0;
+
+    withYear.forEach(function (entry) {
+      var p = entry.p;
+      var year = entry.year;
+
+      // Séparateur d'année
+      if (year !== currentGroupYear) {
+        currentGroupYear = year;
+        var sep = document.createElement('div');
+        sep.className = 'archived-year-sep';
+        sep.textContent = year ? String(year) : 'Sans facture';
+        list.appendChild(sep);
+      }
+
+      var idx = globalIdx++;
       var sec = projectSeconds(p.id);
       var amount = projectAmount(p.id);
 
@@ -5117,6 +5168,7 @@
     document.getElementById('inv-new-amount').value = '';
     document.getElementById('quick-project-panel').style.display = 'none';
     editingInvoiceId = null;
+    archiveAfterInvoice = null;
     updateInvoiceBreakdown();
   };
 
@@ -5139,6 +5191,8 @@
     document.getElementById('qp-rate').value = '';
   };
 
+  var archiveAfterInvoice = null; // id du projet à archiver après validation de la facture
+
   document.getElementById('qp-confirm').onclick = function () {
     var name = document.getElementById('qp-name').value.trim();
     if (!name) { document.getElementById('qp-name').focus(); return; }
@@ -5147,36 +5201,26 @@
     var rate = parseFloat(document.getElementById('qp-rate').value) || 90;
     var shouldArchive = document.getElementById('qp-archive').checked;
 
-    var newProject = { id: genId(), name: name, client: client, clientId: clientId, rate: rate, subtasks: [], archived: shouldArchive };
+    // Le projet est toujours créé actif pour pouvoir être sélectionné dans la facture
+    var newProject = { id: genId(), name: name, client: client, clientId: clientId, rate: rate, subtasks: [], archived: false };
     state.projects.push(newProject);
 
-    // Si archivé, on ne l'ajoute pas dans le select (il sera masqué)
-    // on sélectionne la valeur vide pour forcer un nouveau choix
+    // On mémorise si on doit l'archiver après validation de la facture
+    archiveAfterInvoice = shouldArchive ? newProject.id : null;
+
+    // On le sélectionne dans la facture (toujours visible car actif)
     var projectOptions = state.projects.filter(function (p) { return !p.archived; }).map(function (p) {
       return '<option value="' + p.id + '">' + escapeHtml(p.name) + (p.client ? ' — ' + escapeHtml(p.client) : '') + '</option>';
     }).join('');
     var select = document.getElementById('inv-new-project');
     select.innerHTML = projectOptions + '<option value="__new__">+ Nouveau projet…</option>';
-
-    if (!shouldArchive) {
-      select.value = newProject.id;
-    } else {
-      select.value = '';
-    }
+    select.value = newProject.id;
 
     document.getElementById('quick-project-panel').style.display = 'none';
     document.getElementById('qp-name').value = '';
     document.getElementById('qp-rate').value = '';
     document.getElementById('qp-archive').checked = false;
-
-    if (!shouldArchive) {
-      document.getElementById('inv-new-amount').focus();
-    } else {
-      // Projet archivé créé : on peut en créer un autre ou remplir la facture
-      document.getElementById('inv-new-project').value = '';
-      document.getElementById('quick-project-panel').style.display = 'block';
-      document.getElementById('qp-name').focus();
-    }
+    document.getElementById('inv-new-amount').focus();
   };
 
   function updateInvoiceBreakdown() {
@@ -5225,6 +5269,13 @@
     }
 
     invoiceYearFilter = new Date(date).getFullYear();
+
+    // Si un projet doit être archivé après cette facture, on le fait maintenant
+    if (archiveAfterInvoice) {
+      var pToArchive = getProject(archiveAfterInvoice);
+      if (pToArchive) pToArchive.archived = true;
+      archiveAfterInvoice = null;
+    }
 
     document.getElementById('invoice-new-panel').classList.remove('open');
     document.getElementById('inv-new-number').value = '';
