@@ -2120,12 +2120,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
     flex: 1;
     min-width: 72px;
     max-width: 120px;
     height: 100%;
-    gap: 8px;
+    gap: 0;
+  }
+
+  .dash-year-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 56px;
+    justify-content: flex-end;
+    padding-bottom: 6px;
+    width: 100%;
   }
 
   .dash-year-delta {
@@ -2133,15 +2143,17 @@
     font-size: 11px;
     font-weight: 700;
     white-space: nowrap;
+    line-height: 1;
   }
   .dash-year-delta.up { color: var(--signal); }
   .dash-year-delta.down { color: var(--grey); }
 
   .dash-year-value {
     font-family: 'Space Mono', monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
+    line-height: 1;
   }
 
   .dash-year-bar-track {
@@ -2155,7 +2167,7 @@
     width: 100%;
     background: var(--ink-deep);
     border-radius: var(--radius) var(--radius) 0 0;
-    transition: height 0.2s ease;
+    transition: height 0.3s ease;
     min-height: 3px;
   }
   .dash-year-col.is-current .dash-year-bar-fill {
@@ -2168,6 +2180,8 @@
     font-weight: 700;
     color: var(--grey);
     letter-spacing: 0.04em;
+    padding-top: 8px;
+    height: 28px;
   }
   .dash-year-col.is-current .dash-year-label {
     color: var(--ink);
@@ -2645,7 +2659,7 @@
         <p class="invoicing-stat-sub" id="inv-total-year-ttc"></p>
       </div>
       <div class="invoicing-stat">
-        <p class="invoicing-stat-label">En attente de paiement</p>
+        <p class="invoicing-stat-label">En attente de paiement (HT)</p>
         <p class="invoicing-stat-value mono" id="inv-total-pending">0 €</p>
       </div>
       <div class="invoicing-stat">
@@ -4042,7 +4056,7 @@
       var ttc = invoiceTtc(inv);
       totalYearHt += inv.amount;
       totalYearTtc += ttc;
-      if (inv.status !== 'paid') totalPending += ttc;
+      if (inv.status !== 'paid') totalPending += inv.amount;
     });
 
     state.projections.forEach(function (proj) {
@@ -4418,8 +4432,10 @@
       }
 
       col.innerHTML =
-        deltaHtml +
-        '<span class="dash-year-value">' + formatMoney(total) + '</span>' +
+        '<div class="dash-year-top">' +
+          (deltaHtml ? deltaHtml : '<span class="dash-year-delta">&nbsp;</span>') +
+          '<span class="dash-year-value">' + formatMoney(total) + '</span>' +
+        '</div>' +
         '<div class="dash-year-bar-track"><div class="dash-year-bar-fill" style="height:' + heightPct + '%;"></div></div>' +
         '<span class="dash-year-label">' + y + '</span>';
 
