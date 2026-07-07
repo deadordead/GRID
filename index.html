@@ -3501,7 +3501,7 @@
     }
 
     renderArchivedSection();
-    renderHistory();
+    renderHistory(true);
     renderLaunchBar();
     scheduleSave();
   }
@@ -3698,7 +3698,13 @@
     return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   }
 
-  function renderHistory() {
+  function renderHistory(forceRefresh) {
+    // Si un champ d'édition est en cours de saisie, on ne reconstruit pas
+    // le DOM pour ne pas perdre le focus (le setInterval tire toutes les secondes)
+    if (!forceRefresh && openEditId) {
+      var ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+    }
     var historyList = document.getElementById('history-list');
     var historyEmpty = document.getElementById('history-empty');
     historyList.innerHTML = '';
@@ -3762,7 +3768,7 @@
       editBtn.onclick = function () {
         openEditId = (openEditId === entry.id) ? null : entry.id;
         editMode = 'duration';
-        renderHistory();
+        renderHistory(true);
       };
 
       var delBtn = document.createElement('button');
@@ -3791,7 +3797,7 @@
   }
 
   function buildEditPanel(entry, refreshFn) {
-    refreshFn = refreshFn || renderHistory;
+    refreshFn = refreshFn || function () { renderHistory(true); };
     var panel = document.createElement('div');
     panel.className = 'edit-panel';
 
