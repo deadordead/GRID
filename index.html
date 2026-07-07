@@ -5665,16 +5665,30 @@
     }
   }
 
-  setInterval(function () {
-    if (state.activeTimer) {
-      if (currentView === 'project') {
-        renderProjectView();
-      } else {
-        render();
-      }
-      checkLongRunningTimer();
+  function tickTimer() {
+    if (!state.activeTimer) return;
+    var elapsed = Math.floor((Date.now() - state.activeTimer.startedAt) / 1000);
+    var h = Math.floor(elapsed / 3600);
+    var m = Math.floor((elapsed % 3600) / 60);
+    var s = elapsed % 60;
+    var lcd = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    var lcdEl = document.getElementById('launch-live-lcd');
+    if (lcdEl) lcdEl.textContent = lcd;
+    // Met aussi à jour le module actif dans la liste si visible
+    var activeLcd = document.querySelector('.module.active .lcd');
+    if (activeLcd) activeLcd.textContent = formatHoursLcd(elapsed);
+    // Met à jour le montant du module actif
+    var activeAmount = document.querySelector('.module.active .module-amount');
+    if (activeAmount && state.activeTimer) {
+      var p = getProject(state.activeTimer.projectId);
+      if (p) activeAmount.textContent = formatMoney((elapsed / 3600) * (p.rate || 0));
     }
+  }
+
+  setInterval(function () {
+    tickTimer();
     tickClock();
+    if (state.activeTimer) checkLongRunningTimer();
   }, 1000);
 
   tickClock();
