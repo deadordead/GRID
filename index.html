@@ -5672,16 +5672,19 @@
     var m = Math.floor((elapsed % 3600) / 60);
     var s = elapsed % 60;
     var lcd = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+    // Compteur du lanceur (temps de la session en cours uniquement)
     var lcdEl = document.getElementById('launch-live-lcd');
     if (lcdEl) lcdEl.textContent = lcd;
-    // Met aussi à jour le module actif dans la liste si visible
-    var activeLcd = document.querySelector('.module.active .lcd');
-    if (activeLcd) activeLcd.textContent = formatHoursLcd(elapsed);
-    // Met à jour le montant du module actif
-    var activeAmount = document.querySelector('.module.active .module-amount');
-    if (activeAmount && state.activeTimer) {
-      var p = getProject(state.activeTimer.projectId);
-      if (p) activeAmount.textContent = formatMoney((elapsed / 3600) * (p.rate || 0));
+
+    // Module actif dans la liste : total projet (sessions passées + session en cours)
+    var p = getProject(state.activeTimer.projectId);
+    if (p) {
+      var totalSeconds = projectSeconds(p.id) + elapsed;
+      var activeLcd = document.querySelector('.module.active .lcd');
+      if (activeLcd) activeLcd.textContent = formatHoursLcd(totalSeconds);
+      var activeAmount = document.querySelector('.module.active .module-amount');
+      if (activeAmount) activeAmount.textContent = formatMoney(projectAmount(p.id) + (elapsed / 3600) * (p.rate || 0));
     }
   }
 
