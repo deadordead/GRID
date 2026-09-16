@@ -634,6 +634,92 @@
     cursor: pointer;
   }
 
+  /* ===== BUDGET & NOTES ===== */
+  .pv-budget-row {
+    margin: 10px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .pv-budget-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--stone-deep);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pv-budget-label span {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .pv-budget-label span.over { color: var(--signal); }
+  .pv-budget-track {
+    height: 6px;
+    background: rgba(244,243,240,0.2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .pv-budget-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    background: #4CAF50;
+  }
+  .pv-budget-fill.warn { background: #FF9800; }
+  .pv-budget-fill.over { background: var(--signal); }
+
+  .module-budget-track {
+    height: 3px;
+    background: rgba(26,26,24,0.12);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 5px;
+    width: 100%;
+  }
+  .module-budget-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #4CAF50;
+  }
+  .module-budget-fill.warn { background: #FF9800; }
+  .module-budget-fill.over { background: var(--signal); }
+
+  .pv-notes-section {
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: #FFFFFF;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .pv-notes-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grey);
+    font-weight: 600;
+    padding: 10px 14px 6px;
+    margin: 0;
+    border-bottom: 1px solid var(--stone);
+  }
+  .pv-notes-textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    background: transparent;
+    padding: 10px 14px;
+    line-height: 1.6;
+    min-height: 80px;
+    box-sizing: border-box;
+  }
+  .pv-notes-textarea::placeholder { color: var(--stone-deep); }
+
   /* ===== HISTORY ===== */
   .history-list {
     display: flex;
@@ -2504,6 +2590,10 @@
           <label for="np-rate">Taux horaire (€)</label>
           <input type="number" id="np-rate" class="mono" placeholder="90" min="0" step="0.5">
         </div>
+        <div class="field" style="max-width: 120px;">
+          <label for="np-budget">Budget (h)</label>
+          <input type="number" id="np-budget" class="mono" placeholder="20" min="0" step="0.5">
+        </div>
       </div>
       <div class="panel-actions">
         <button class="btn" id="np-cancel">Annuler</button>
@@ -2550,6 +2640,20 @@
             <button class="pv-rate-display" id="pv-rate-display"></button>
             <input type="number" class="pv-rate-input" id="pv-rate-input" min="0" step="0.5" style="display:none;">
           </p>
+          <p class="project-header-rate" style="margin-top:4px;">
+            Budget
+            <button class="pv-rate-display" id="pv-budget-display"></button>
+            <input type="number" class="pv-rate-input" id="pv-budget-input" min="0" step="0.5" style="display:none;">
+          </p>
+          <div class="pv-budget-row" id="pv-budget-row" style="display:none;">
+            <div class="pv-budget-label">
+              <span>Remplissage</span>
+              <span id="pv-budget-pct"></span>
+            </div>
+            <div class="pv-budget-track">
+              <div class="pv-budget-fill" id="pv-budget-fill"></div>
+            </div>
+          </div>
         </div>
         <div class="project-header-actions">
           <button class="icon-btn" id="pv-archive" style="color: var(--stone-deep);" aria-label="Archiver le projet"></button>
@@ -2583,6 +2687,11 @@
         <label for="pv-threshold" style="margin-left:-4px;">min</label>
         <span class="threshold-note">N'affecte que le compteur « jours actifs »</span>
       </div>
+    </div>
+
+    <div class="pv-notes-section">
+      <p class="pv-notes-label">Notes</p>
+      <textarea class="pv-notes-textarea" id="pv-notes" placeholder="Date de présentation, brief, contacts, remarques…"></textarea>
     </div>
 
     <div class="section-head">
@@ -3456,6 +3565,13 @@
           ? ' style="background:' + p.color + '; color:' + contrastTextColor(p.color) + ';"'
           : '';
 
+        var budgetBarHtml = '';
+        if (p.budgetHours) {
+          var budgetUsedPct = Math.min(Math.round((sec / 3600 / p.budgetHours) * 100), 100);
+          var budgetCls = budgetUsedPct >= 100 ? 'over' : budgetUsedPct >= 80 ? 'warn' : '';
+          budgetBarHtml = '<div class="module-budget-track"><div class="module-budget-fill' + (budgetCls ? ' ' + budgetCls : '') + '" style="width:' + budgetUsedPct + '%;"></div></div>';
+        }
+
         module.innerHTML =
           '<div class="module-index"' + indexStyle + '>' + indexLabel + '</div>' +
           '<div class="module-info">' +
@@ -3464,6 +3580,7 @@
               (p.client ? '<span class="module-client">' + escapeHtml(p.client) + '</span>' : '') +
             '</p>' +
             '<p class="module-rate">Taux <b>' + (p.rate || 0) + ' €/h</b></p>' +
+            budgetBarHtml +
           '</div>' +
           '<div class="module-display">' +
             '<div class="lcd">' + formatHoursShort(sec) + '</div>' +
@@ -3580,6 +3697,11 @@
             (p.client ? '<span class="module-client">' + escapeHtml(p.client) + '</span>' : '') +
           '</p>' +
           '<p class="module-rate">Taux <b>' + (p.rate || 0) + ' €/h</b></p>' +
+          (p.budgetHours ? (function () {
+            var pct = Math.min(Math.round((sec / 3600 / p.budgetHours) * 100), 100);
+            var cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+            return '<div class="module-budget-track"><div class="module-budget-fill' + (cls ? ' ' + cls : '') + '" style="width:' + pct + '%;"></div></div>';
+          })() : '') +
         '</div>' +
         '<div class="module-display">' +
           '<div class="lcd">' + formatHoursShort(sec) + '</div>' +
@@ -4736,6 +4858,30 @@
     document.getElementById('pv-total-hours').textContent = formatHoursShort(totalSeconds);
     document.getElementById('pv-total-amount').textContent = formatMoney(totalAmount);
 
+    // Budget
+    var budgetHours = p.budgetHours || null;
+    document.getElementById('pv-budget-display').textContent = budgetHours ? budgetHours + 'h budget' : '—';
+    document.getElementById('pv-budget-input').value = budgetHours || '';
+    var budgetRow = document.getElementById('pv-budget-row');
+    if (budgetHours) {
+      budgetRow.style.display = 'flex';
+      var usedHours = totalSeconds / 3600;
+      var pct = Math.round((usedHours / budgetHours) * 100);
+      var fillPct = Math.min(pct, 100);
+      var cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+      document.getElementById('pv-budget-pct').textContent = pct + '%';
+      document.getElementById('pv-budget-pct').className = cls;
+      var fill = document.getElementById('pv-budget-fill');
+      fill.style.width = fillPct + '%';
+      fill.className = 'pv-budget-fill' + (cls ? ' ' + cls : '');
+    } else {
+      budgetRow.style.display = 'none';
+    }
+
+    // Notes
+    var notesEl = document.getElementById('pv-notes');
+    if (!notesEl.matches(':focus')) notesEl.value = p.notes || '';
+
     var archiveBtn = document.getElementById('pv-archive');
     archiveBtn.innerHTML = p.archived ? svgUnarchive() : svgArchive();
     archiveBtn.title = p.archived ? 'Désarchiver le projet' : 'Archiver le projet';
@@ -5437,6 +5583,40 @@
     if (e.key === 'Enter') this.blur();
   };
 
+  document.getElementById('pv-budget-display').onclick = function () {
+    this.style.display = 'none';
+    var input = document.getElementById('pv-budget-input');
+    input.style.display = 'inline-block';
+    input.focus();
+    input.select();
+  };
+
+  function commitProjectBudget() {
+    var input = document.getElementById('pv-budget-input');
+    var display = document.getElementById('pv-budget-display');
+    var p = getProject(currentProjectId);
+    if (p) {
+      var parsed = parseFloat(input.value);
+      p.budgetHours = !isNaN(parsed) && parsed > 0 ? parsed : null;
+    }
+    input.style.display = 'none';
+    display.style.display = 'inline-block';
+    renderProjectView();
+  }
+
+  document.getElementById('pv-budget-input').onblur = commitProjectBudget;
+  document.getElementById('pv-budget-input').onkeydown = function (e) {
+    if (e.key === 'Enter') this.blur();
+  };
+
+  document.getElementById('pv-notes').onblur = function () {
+    var p = getProject(currentProjectId);
+    if (p) {
+      p.notes = this.value;
+      scheduleSave();
+    }
+  };
+
   document.getElementById('pv-threshold').oninput = function () {
     var val = parseFloat(this.value) || 0;
     projectThresholds[currentProjectId] = val;
@@ -5618,12 +5798,15 @@
     var clientId = document.getElementById('np-client').value || null;
     var client = clientId ? (getClient(clientId) || {}).name || '' : '';
     var rate = parseFloat(document.getElementById('np-rate').value) || 90;
+    var budgetVal = parseFloat(document.getElementById('np-budget').value);
+    var budgetHours = !isNaN(budgetVal) && budgetVal > 0 ? budgetVal : null;
     if (!name) return;
-    state.projects.push({ id: genId(), name: name, client: client, clientId: clientId, rate: rate, subtasks: [], archived: false });
+    state.projects.push({ id: genId(), name: name, client: client, clientId: clientId, rate: rate, budgetHours: budgetHours, subtasks: [], archived: false, notes: '' });
     document.getElementById('new-panel').classList.remove('open');
     document.getElementById('np-name').value = '';
     document.getElementById('np-client').value = '';
     document.getElementById('np-rate').value = '';
+    document.getElementById('np-budget').value = '';
     render();
   };
 
