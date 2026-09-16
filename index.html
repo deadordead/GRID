@@ -4803,6 +4803,34 @@
       };
       panel.appendChild(swatch);
     });
+
+    // Séparateur + color picker natif
+    var sep = document.createElement('div');
+    sep.style.cssText = 'grid-column: 1 / -1; border-top: 1px solid rgba(244,243,240,0.2); margin: 4px 0;';
+    panel.appendChild(sep);
+
+    var pickerWrap = document.createElement('div');
+    pickerWrap.style.cssText = 'grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;';
+
+    var picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = p.color || '#FF4D00';
+    picker.style.cssText = 'width: 28px; height: 28px; border: none; border-radius: 50%; cursor: pointer; padding: 0; background: none;';
+    picker.setAttribute('aria-label', 'Choisir une couleur personnalisée');
+
+    var pickerLabel = document.createElement('span');
+    pickerLabel.style.cssText = 'font-size: 10px; color: rgba(244,243,240,0.6); letter-spacing: 0.06em; text-transform: uppercase;';
+    pickerLabel.textContent = 'Couleur libre';
+
+    picker.oninput = function () {
+      p.color = this.value;
+      renderProjectView();
+      render();
+    };
+
+    pickerWrap.appendChild(picker);
+    pickerWrap.appendChild(pickerLabel);
+    panel.appendChild(pickerWrap);
   }
 
   function getProject(projectId) {
