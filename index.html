@@ -2591,8 +2591,8 @@
           <input type="number" id="np-rate" class="mono" placeholder="90" min="0" step="0.5">
         </div>
         <div class="field" style="max-width: 120px;">
-          <label for="np-budget">Budget (h)</label>
-          <input type="number" id="np-budget" class="mono" placeholder="20" min="0" step="0.5">
+          <label for="np-budget">Budget (€)</label>
+          <input type="number" id="np-budget" class="mono" placeholder="2000" min="0" step="100">
         </div>
       </div>
       <div class="panel-actions">
@@ -3566,8 +3566,8 @@
           : '';
 
         var budgetBarHtml = '';
-        if (p.budgetHours) {
-          var budgetUsedPct = Math.min(Math.round((sec / 3600 / p.budgetHours) * 100), 100);
+        if (p.budgetAmount) {
+          var budgetUsedPct = Math.min(Math.round(((sec / 3600) * (p.rate || 0) / p.budgetAmount) * 100), 100);
           var budgetCls = budgetUsedPct >= 100 ? 'over' : budgetUsedPct >= 80 ? 'warn' : '';
           budgetBarHtml = '<div class="module-budget-track"><div class="module-budget-fill' + (budgetCls ? ' ' + budgetCls : '') + '" style="width:' + budgetUsedPct + '%;"></div></div>';
         }
@@ -3697,8 +3697,8 @@
             (p.client ? '<span class="module-client">' + escapeHtml(p.client) + '</span>' : '') +
           '</p>' +
           '<p class="module-rate">Taux <b>' + (p.rate || 0) + ' €/h</b></p>' +
-          (p.budgetHours ? (function () {
-            var pct = Math.min(Math.round((sec / 3600 / p.budgetHours) * 100), 100);
+          (p.budgetAmount ? (function () {
+            var pct = Math.min(Math.round(((sec / 3600) * (p.rate || 0) / p.budgetAmount) * 100), 100);
             var cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
             return '<div class="module-budget-track"><div class="module-budget-fill' + (cls ? ' ' + cls : '') + '" style="width:' + pct + '%;"></div></div>';
           })() : '') +
@@ -4859,17 +4859,17 @@
     document.getElementById('pv-total-amount').textContent = formatMoney(totalAmount);
 
     // Budget
-    var budgetHours = p.budgetHours || null;
-    document.getElementById('pv-budget-display').textContent = budgetHours ? budgetHours + 'h budget' : '—';
-    document.getElementById('pv-budget-input').value = budgetHours || '';
+    var budgetAmount = p.budgetAmount || null;
+    document.getElementById('pv-budget-display').textContent = budgetAmount ? formatMoney(budgetAmount) + ' budget' : '—';
+    document.getElementById('pv-budget-input').value = budgetAmount || '';
     var budgetRow = document.getElementById('pv-budget-row');
-    if (budgetHours) {
+    if (budgetAmount) {
       budgetRow.style.display = 'flex';
-      var usedHours = totalSeconds / 3600;
-      var pct = Math.round((usedHours / budgetHours) * 100);
+      var consumed = (totalSeconds / 3600) * (p.rate || 0);
+      var pct = Math.round((consumed / budgetAmount) * 100);
       var fillPct = Math.min(pct, 100);
       var cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
-      document.getElementById('pv-budget-pct').textContent = pct + '%';
+      document.getElementById('pv-budget-pct').textContent = formatMoney(consumed) + ' / ' + pct + '%';
       document.getElementById('pv-budget-pct').className = cls;
       var fill = document.getElementById('pv-budget-fill');
       fill.style.width = fillPct + '%';
@@ -5597,7 +5597,7 @@
     var p = getProject(currentProjectId);
     if (p) {
       var parsed = parseFloat(input.value);
-      p.budgetHours = !isNaN(parsed) && parsed > 0 ? parsed : null;
+      p.budgetAmount = !isNaN(parsed) && parsed > 0 ? parsed : null;
     }
     input.style.display = 'none';
     display.style.display = 'inline-block';
@@ -5799,9 +5799,9 @@
     var client = clientId ? (getClient(clientId) || {}).name || '' : '';
     var rate = parseFloat(document.getElementById('np-rate').value) || 90;
     var budgetVal = parseFloat(document.getElementById('np-budget').value);
-    var budgetHours = !isNaN(budgetVal) && budgetVal > 0 ? budgetVal : null;
+    var budgetAmount = !isNaN(budgetVal) && budgetVal > 0 ? budgetVal : null;
     if (!name) return;
-    state.projects.push({ id: genId(), name: name, client: client, clientId: clientId, rate: rate, budgetHours: budgetHours, subtasks: [], archived: false, notes: '' });
+    state.projects.push({ id: genId(), name: name, client: client, clientId: clientId, rate: rate, budgetAmount: budgetAmount, subtasks: [], archived: false, notes: '' });
     document.getElementById('new-panel').classList.remove('open');
     document.getElementById('np-name').value = '';
     document.getElementById('np-client').value = '';
