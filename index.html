@@ -4325,13 +4325,31 @@
       var row = document.createElement('div');
       row.className = 'projection-row';
 
+      // Montant : affichage normal ou champ d'édition inline
+      var amountHtml = '<span class="projection-amount mono" id="proj-amount-' + proj.id + '">' + formatMoney(proj.amount) + '</span>' +
+        '<input type="number" class="proj-amount-input mono" id="proj-input-' + proj.id + '" value="' + proj.amount + '" step="1" style="display:none; width:90px; text-align:right; font-family:\'Space Mono\',monospace; font-size:13px; font-weight:700; border:1.5px solid var(--signal); border-radius:var(--radius); padding:2px 6px; background:var(--bg); color:var(--ink);">';
+
       row.innerHTML =
         '<span class="invoice-project-name" style="color:var(--ink); font-weight:600;">' + escapeHtml(p ? p.name : 'Projet supprimé') + '</span>' +
         '<span class="invoice-client">' + escapeHtml(p && p.client ? p.client : '—') + '</span>' +
-        '<span class="projection-amount mono">' + formatMoney(proj.amount) + '</span>' +
+        '<span style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">' + amountHtml + '</span>' +
         '<span class="invoice-row-actions"></span>';
 
       var actionsSlot = row.children[3];
+
+      var editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label', 'Modifier le montant');
+      editBtn.innerHTML = svgEdit();
+      editBtn.onclick = function () {
+        var display = document.getElementById('proj-amount-' + proj.id);
+        var input = document.getElementById('proj-input-' + proj.id);
+        display.style.display = 'none';
+        input.style.display = 'inline-block';
+        input.focus();
+        input.select();
+      };
+
       var delBtn = document.createElement('button');
       delBtn.className = 'icon-btn';
       delBtn.setAttribute('aria-label', 'Supprimer la ligne de projection');
@@ -4340,7 +4358,20 @@
         state.projections = state.projections.filter(function (pr) { return pr.id !== proj.id; });
         renderInvoicingView();
       };
+
+      actionsSlot.appendChild(editBtn);
       actionsSlot.appendChild(delBtn);
+
+      // Validation de l'édition (blur ou Entrée)
+      row.querySelector('.proj-amount-input').onblur = function () {
+        var val = parseFloat(this.value);
+        if (!isNaN(val)) proj.amount = val;
+        renderInvoicingView();
+      };
+      row.querySelector('.proj-amount-input').onkeydown = function (e) {
+        if (e.key === 'Enter') this.blur();
+        if (e.key === 'Escape') { this.value = proj.amount; this.blur(); }
+      };
 
       body.appendChild(row);
     });
