@@ -4360,6 +4360,15 @@
       };
 
       actionsSlot.appendChild(editBtn);
+
+      var invoiceBtn = document.createElement('button');
+      invoiceBtn.className = 'icon-btn';
+      invoiceBtn.setAttribute('aria-label', 'Convertir en facture');
+      invoiceBtn.style.color = 'var(--signal)';
+      invoiceBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
+      invoiceBtn.onclick = function () { convertProjectionToInvoice(proj); };
+      actionsSlot.appendChild(invoiceBtn);
+
       actionsSlot.appendChild(delBtn);
 
       // Validation de l'édition (blur ou Entrée)
@@ -5396,6 +5405,7 @@
     document.getElementById('quick-project-panel').style.display = 'none';
     editingInvoiceId = null;
     archiveAfterInvoice = null;
+    projectionToDelete = null;
     updateInvoiceBreakdown();
   };
 
@@ -5419,6 +5429,37 @@
   };
 
   var archiveAfterInvoice = null; // id du projet à archiver après validation de la facture
+  var projectionToDelete = null;  // id de la projection à supprimer après validation de la facture
+
+  function convertProjectionToInvoice(proj) {
+    projectionToDelete = proj.id;
+    editingInvoiceId = null;
+
+    // Pré-remplir le formulaire de facture
+    var panel = document.getElementById('invoice-new-panel');
+    panel.classList.add('open');
+    document.getElementById('invoice-panel-title').textContent = 'Nouvelle facture (depuis projection)';
+    document.getElementById('inv-new-confirm').textContent = 'Ajouter';
+
+    var dateInput = document.getElementById('inv-new-date');
+    if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+
+    document.getElementById('inv-new-number').value = suggestNextInvoiceNumber(new Date(dateInput.value).getFullYear());
+    document.getElementById('inv-new-amount').value = proj.amount;
+    setVatToggle(selectedVat);
+    updateInvoiceBreakdown();
+
+    // Sélectionner le bon projet dans le select
+    var select = document.getElementById('inv-new-project');
+    if (Array.from(select.options).some(function (o) { return o.value === proj.projectId; })) {
+      select.value = proj.projectId;
+    }
+
+    document.getElementById('quick-project-panel').style.display = 'none';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('inv-new-amount').focus();
+    document.getElementById('inv-new-amount').select();
+  }
 
   document.getElementById('qp-confirm').onclick = function () {
     var name = document.getElementById('qp-name').value.trim();
@@ -5504,6 +5545,13 @@
       archiveAfterInvoice = null;
     }
 
+    // Si cette facture vient d'une projection, on supprime la ligne de projection
+    if (projectionToDelete) {
+      state.projections = state.projections.filter(function (pr) { return pr.id !== projectionToDelete; });
+      projectionToDelete = null;
+    }
+
+    document.getElementById('invoice-panel-title').textContent = 'Nouvelle facture';
     document.getElementById('invoice-new-panel').classList.remove('open');
     document.getElementById('inv-new-number').value = '';
     document.getElementById('inv-new-amount').value = '';
