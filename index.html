@@ -2981,7 +2981,10 @@
 
   <div class="footnote">
     <span id="sync-status">GRID — connexion en cours…</span>
-    <span id="clock" class="mono"></span>
+    <span style="display:flex; align-items:center; gap:14px;">
+      <button id="export-btn" style="border:none; background:transparent; color:var(--stone-deep); font-family:'Space Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer; padding:0;" title="Télécharger une sauvegarde de toutes vos données">↓ Sauvegarde</button>
+      <span id="clock" class="mono"></span>
+    </span>
   </div>
 </main>
 
@@ -5935,6 +5938,30 @@
     document.getElementById('np-rate').value = '';
     document.getElementById('np-budget').value = '';
     render();
+  };
+
+  document.getElementById('export-btn').onclick = function () {
+    var exportData = {
+      exportDate: new Date().toISOString(),
+      version: 1,
+      projects: state.projects,
+      entries: state.entries,
+      invoices: state.invoices,
+      projections: state.projections,
+      clients: state.clients,
+      yearlyData: state.yearlyData
+    };
+    var json = JSON.stringify(exportData, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'GRID-sauvegarde-' + date + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   function tickClock() {
