@@ -2404,6 +2404,8 @@
     text-align: right;
     border-top: 1px solid var(--stone);
     white-space: nowrap;
+    height: 44px;
+    vertical-align: middle;
   }
   .dash-pilot-table td:first-child {
     text-align: left;
@@ -4690,12 +4692,12 @@
       {
         label: 'Bénéfice', cls: '',
         render: function (d, y) { return inputCell(y, 'benefice', d.benefice); },
-        proj: fmtCell(projBenefice, false) + (avgChargesPct !== null ? '<br><span style="font-size:10px;color:var(--grey);">moy. ' + Math.round(avgChargesPct) + '% charges</span>' : '')
+        proj: fmtCell(projBenefice, false) + (avgChargesPct !== null ? ' <span style="font-size:10px;color:var(--grey);">(' + Math.round(avgChargesPct) + '% ch.)</span>' : '')
       },
       {
         label: '% de charges', cls: '',
         render: function (d) { return fmtCell(d.charges, true); },
-        proj: fmtCell(avgChargesPct, true) + (avgChargesPct !== null ? '<br><span style="font-size:10px;color:var(--grey);">moyenne</span>' : '')
+        proj: fmtCell(avgChargesPct, true) + (avgChargesPct !== null ? ' <span style="font-size:10px;color:var(--grey);">(moy.)</span>' : '')
       },
       {
         label: 'Mensuel net avant IR', cls: '',
