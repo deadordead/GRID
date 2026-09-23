@@ -4627,12 +4627,14 @@
       return;
     }
 
-    // HEADER : étiquette + une colonne par année + colonne projection
+    var projStyle = 'background: rgba(26,26,24,0.04);';
+
+    // HEADER
     var headHtml = '<tr><th></th>' +
       years.map(function (y) {
         return '<th class="' + (y === currentYear ? 'is-current' : '') + '">' + y + '</th>';
       }).join('') +
-      '<th class="is-current">Projection ' + currentYear + '</th>' +
+      '<th class="is-current" style="' + projStyle + ' font-style:italic;">Projection ' + currentYear + '</th>' +
       '</tr>';
     thead.innerHTML = headHtml;
 
@@ -4641,17 +4643,26 @@
       var ca = invoicesForYear(y).reduce(function (s, i) { return s + i.amount; }, 0);
       var saved = state.yearlyData[String(y)] || {};
       var benefice = (typeof saved.benefice === 'number') ? saved.benefice : null;
-      var impot = (typeof saved.impot === 'number') ? saved.impot : null;
       var charges = (benefice !== null && ca > 0) ? ((ca - benefice) / ca * 100) : null;
       var mensuel = (benefice !== null) ? benefice / 12 : null;
-      var salaire = (benefice !== null && impot !== null) ? (benefice - impot) / 12 : null;
-      return { ca: ca, benefice: benefice, impot: impot, charges: charges, mensuel: mensuel, salaire: salaire };
+      return { ca: ca, benefice: benefice, charges: charges, mensuel: mensuel };
     }
 
-    // Projection année en cours
+    // Projection : CA facturé + projections en cours
     var caCurrentYearSoFar = invoicesForYear(currentYear).reduce(function (s, i) { return s + i.amount; }, 0);
     var projectionTotal = state.projections.reduce(function (s, p) { return s + p.amount; }, 0);
-    var projection = caCurrentYearSoFar + projectionTotal;
+    var projectionCA = caCurrentYearSoFar + projectionTotal;
+
+    // Charges moyennes sur les années où le bénéfice est renseigné
+    var yearDataCache = {};
+    years.forEach(function (y) { yearDataCache[y] = getYearData(y); });
+
+    var chargesYears = years.filter(function (y) { return yearDataCache[y].charges !== null; });
+    var avgChargesPct = chargesYears.length > 0
+      ? chargesYears.reduce(function (s, y) { return s + yearDataCache[y].charges; }, 0) / chargesYears.length
+      : null;
+    var projBenefice = avgChargesPct !== null ? projectionCA * (1 - avgChargesPct / 100) : null;
+    var projMensuel = projBenefice !== null ? projBenefice / 12 : null;
 
     function fmtCell(val, isPercent) {
       if (val === null) return '<span style="color:var(--stone-deep)">—</span>';
@@ -4660,39 +4671,44 @@
     }
 
     function inputCell(y, field, currentVal) {
-      var yStr = String(y);
-      var placeholder = field === 'benefice' ? 'Bénéfice' : 'Impôt';
       var val = currentVal !== null ? currentVal : '';
       return '<input class="dash-pilot-input" type="number" step="1" ' +
-        'placeholder="' + placeholder + '" ' +
+        'placeholder="Bénéfice" ' +
         'value="' + val + '" ' +
-        'data-year="' + yStr + '" data-field="' + field + '">';
+        'data-year="' + y + '" data-field="' + field + '">';
     }
 
     var rows = [
-      { key: 'ca',       label: 'Chiffre d\'affaires (HT)', cls: 'row-ca',      render: function (d) { return fmtCell(d.ca, false); }, proj: function () { return formatMoney(caCurrentYearSoFar); } },
-      { key: 'benefice', label: 'Bénéfice',                 cls: '',            render: function (d, y) { return inputCell(y, 'benefice', d.benefice); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
-      { key: 'charges',  label: '% de charges',             cls: '',            render: function (d) { return fmtCell(d.charges, true); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
-      { key: 'mensuel',  label: 'Mensuel moyen',            cls: '',            render: function (d) { return fmtCell(d.mensuel, false); }, proj: function () { return formatMoney(projection / 12); } },
-      { key: 'impot',    label: 'Impôt sur le revenu',      cls: '',            render: function (d, y) { return inputCell(y, 'impot', d.impot); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
-      { key: 'salaire',  label: 'Salaire net / mois',        cls: 'row-salary',  render: function (d) { return fmtCell(d.salaire, false); }, proj: function () { return '<span style="color:var(--stone-deep)">—</span>'; } },
+      {
+        label: 'Chiffre d\'affaires (HT)', cls: 'row-ca',
+        render: function (d) { return fmtCell(d.ca, false); },
+        proj: formatMoney(projectionCA)
+      },
+      {
+        label: 'Bénéfice', cls: '',
+        render: function (d, y) { return inputCell(y, 'benefice', d.benefice); },
+        proj: fmtCell(projBenefice, false) + (avgChargesPct !== null ? '<br><span style="font-size:10px;color:var(--grey);">moy. ' + Math.round(avgChargesPct) + '% charges</span>' : '')
+      },
+      {
+        label: '% de charges', cls: '',
+        render: function (d) { return fmtCell(d.charges, true); },
+        proj: fmtCell(avgChargesPct, true) + (avgChargesPct !== null ? '<br><span style="font-size:10px;color:var(--grey);">moyenne</span>' : '')
+      },
+      {
+        label: 'Mensuel net avant IR', cls: '',
+        render: function (d) { return fmtCell(d.mensuel, false); },
+        proj: fmtCell(projMensuel, false)
+      },
     ];
-
-    var yearDataCache = {};
-    years.forEach(function (y) { yearDataCache[y] = getYearData(y); });
 
     tbody.innerHTML = rows.map(function (row) {
       var cells = years.map(function (y) {
         return '<td>' + row.render(yearDataCache[y], y) + '</td>';
       }).join('');
-      var projCell = '<td class="row-projection-cell">' + row.proj() + '</td>';
+      var projCell = '<td style="' + projStyle + ' font-style:italic;">' + row.proj + '</td>';
       return '<tr class="' + row.cls + '">' +
         '<td>' + row.label + '</td>' + cells + projCell + '</tr>';
-    }).join('') +
-    '<tr class="row-projection"><td>Projection CA ' + currentYear + '</td>' +
-      years.map(function () { return '<td>—</td>'; }).join('') +
-      '<td><strong>' + formatMoney(projection) + '</strong></td>' +
-    '</tr>';
+    }).join('');
 
     // Listeners sur les inputs éditables
     tbody.querySelectorAll('.dash-pilot-input').forEach(function (input) {
