@@ -1328,6 +1328,13 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .chart-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .chart-mode-toggle {
@@ -2707,13 +2714,15 @@
           <button class="chart-mode-btn active" id="chart-mode-week" data-mode="week">Semaine</button>
           <button class="chart-mode-btn" id="chart-mode-month" data-mode="month">Mois</button>
         </div>
-        <button class="chart-nav-btn" id="chart-nav-prev" aria-label="Période précédente">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-        <span class="chart-range-label" id="chart-range-label"></span>
-        <button class="chart-nav-btn" id="chart-nav-next" aria-label="Période suivante">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
+        <div class="chart-nav-group">
+          <button class="chart-nav-btn" id="chart-nav-prev" aria-label="Période précédente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <span class="chart-range-label" id="chart-range-label"></span>
+          <button class="chart-nav-btn" id="chart-nav-next" aria-label="Période suivante">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
       </div>
     </div>
     <div class="chart-card">
