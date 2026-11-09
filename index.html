@@ -274,6 +274,13 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.35; }
   }
+  .launch-live-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
   .launch-live-name {
     font-weight: 700;
     font-size: 14px;
@@ -284,6 +291,42 @@
     flex: 1;
     min-width: 0;
   }
+  .launch-live-main .launch-live-name { flex: none; }
+  .launch-live-start {
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--stone-deep);
+    border-bottom: 1px dashed rgba(244,243,240,0.3);
+    align-self: flex-start;
+  }
+  .launch-live-start:hover { color: var(--bg); }
+  .launch-live-start-row { display: flex; align-items: center; }
+  .launch-live-start-edit { display: flex; align-items: center; gap: 6px; }
+  .launch-live-start-edit input {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+    border: 1.5px solid var(--signal);
+    border-radius: var(--radius);
+    padding: 3px 6px;
+  }
+  .launch-live-start-edit button {
+    border: none;
+    background: rgba(244,243,240,0.12);
+    color: var(--bg);
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .launch-live-start-edit button:hover { background: rgba(244,243,240,0.25); }
   .launch-live-sub {
     font-size: 11px;
     color: var(--signal);
@@ -2543,7 +2586,17 @@
       </div>
       <div class="launch-live" id="launch-live">
         <span class="launch-live-dot"></span>
-        <span class="launch-live-name" id="launch-live-name"></span>
+        <div class="launch-live-main">
+          <span class="launch-live-name" id="launch-live-name"></span>
+          <span class="launch-live-start-row">
+            <button class="launch-live-start" id="launch-live-start" title="Corriger l'heure de départ"></button>
+            <span class="launch-live-start-edit" id="launch-live-start-edit" style="display:none;">
+              <input type="time" id="launch-live-start-input">
+              <button type="button" id="launch-live-start-ok" aria-label="Valider l'heure">✓</button>
+              <button type="button" id="launch-live-start-cancel" aria-label="Annuler">✕</button>
+            </span>
+          </span>
+        </div>
         <span class="launch-live-sub mono" id="launch-live-sub"></span>
         <span class="launch-live-lcd mono" id="launch-live-lcd">00:00:00</span>
       </div>
@@ -3792,6 +3845,10 @@
       liveSub.style.display = sub ? 'inline' : 'none';
       var elapsed = (Date.now() - state.activeTimer.startedAt) / 1000;
       liveLcd.textContent = formatClock(elapsed);
+      var startEdit = document.getElementById('launch-live-start-edit');
+      if (startEdit.style.display === 'none') {
+        document.getElementById('launch-live-start').textContent = 'démarré ' + formatStartLabel(state.activeTimer.startedAt) + ' ✎';
+      }
       toggle.disabled = false;
       toggle.textContent = 'STOP';
       toggle.classList.add('is-running');
@@ -3799,12 +3856,69 @@
       bar.classList.remove('running');
       selectWrap.classList.remove('hide');
       live.classList.remove('show');
+      document.getElementById('launch-live-start-edit').style.display = 'none';
+      document.getElementById('launch-live-start').style.display = '';
       toggle.classList.remove('is-running');
       toggle.textContent = 'START';
       toggle.disabled = !select.value;
       updateSubtaskSelect();
     }
   }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function formatStartLabel(ts) {
+    var d = new Date(ts);
+    var hhmm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    var now = new Date();
+    var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    if (sameDay) return 'à ' + hhmm;
+    return 'le ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + hhmm;
+  }
+
+  function openStartEditor() {
+    if (!state.activeTimer) return;
+    var d = new Date(state.activeTimer.startedAt);
+    document.getElementById('launch-live-start-input').value = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    document.getElementById('launch-live-start').style.display = 'none';
+    document.getElementById('launch-live-start-edit').style.display = 'flex';
+    document.getElementById('launch-live-start-input').focus();
+  }
+
+  function closeStartEditor() {
+    document.getElementById('launch-live-start-edit').style.display = 'none';
+    document.getElementById('launch-live-start').style.display = '';
+    renderLaunchBar();
+  }
+
+  function commitStartEditor() {
+    if (!state.activeTimer) { closeStartEditor(); return; }
+    var val = document.getElementById('launch-live-start-input').value;
+    if (!val) return;
+    var parts = val.split(':');
+    var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return;
+
+    // On garde le jour de départ d'origine, seule l'heure change
+    var d = new Date(state.activeTimer.startedAt);
+    d.setHours(h, m, 0, 0);
+    // Une heure dans le futur est interprétée comme la veille
+    if (d.getTime() > Date.now()) d.setDate(d.getDate() - 1);
+
+    state.activeTimer.startedAt = d.getTime();
+    longTimerNotified = false;
+    document.getElementById('launch-live-start-edit').style.display = 'none';
+    document.getElementById('launch-live-start').style.display = '';
+    render();
+  }
+
+  document.getElementById('launch-live-start').onclick = openStartEditor;
+  document.getElementById('launch-live-start-ok').onclick = commitStartEditor;
+  document.getElementById('launch-live-start-cancel').onclick = closeStartEditor;
+  document.getElementById('launch-live-start-input').onkeydown = function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); commitStartEditor(); }
+    if (e.key === 'Escape') closeStartEditor();
+  };
 
   function updateSubtaskSelect() {
     var select = document.getElementById('launch-select');
